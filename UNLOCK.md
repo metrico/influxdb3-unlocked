@@ -265,6 +265,35 @@ This fork is designed to be a drop-in replacement for InfluxDB3-core. All contri
 
 This project maintains the same license as the original InfluxDB3-core while removing artificial limitations.
 
+## 📦 Release Process
+
+### GitHub Actions Workflow
+This project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that automatically builds and releases both binary and Docker images when a new release is published.
+
+**What it does:**
+- Builds optimized Linux x64 binary with all enterprise features
+- Creates compressed archive with binary and Python dependencies
+- Builds and pushes Docker image to Docker Hub
+- Attaches binary to GitHub release
+
+**Required Secrets:**
+- No additional secrets required! Uses GitHub's built-in `GITHUB_TOKEN`
+
+**To create a release:**
+1. Create a new release on GitHub with a version tag (e.g., `v1.0.0`)
+2. The workflow will automatically trigger and build artifacts
+3. Binary will be attached to the release
+4. Docker image will be pushed to `ghcr.io/yourusername/influxdb3-unlocked:latest` and `ghcr.io/yourusername/influxdb3-unlocked:v1.0.0`
+
+### Manual Build
+```bash
+# Build binary locally
+cargo build --release --package influxdb3 --no-default-features --features aws,gcp,azure,jemalloc_replacing_malloc
+
+# Build Docker image
+docker build -t influxdb3-unlocked .
+```
+
 ---
 
-**🎉 Enjoy unlimited InfluxDB3 performance!** 
+**🎉 Enjoy unlimited InfluxDB3 performance!**
