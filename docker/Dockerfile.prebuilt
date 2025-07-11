@@ -1,0 +1,37 @@
+FROM debian:bookworm-slim
+
+RUN apt update \
+    && apt install --yes ca-certificates gettext-base libssl3 wget curl --no-install-recommends \
+    && rm -rf /var/lib/{apt,dpkg,cache,log} \
+    && groupadd --gid 1500 influxdb3 \
+    && useradd --uid 1500 --gid influxdb3 --shell /bin/bash --create-home influxdb3
+
+RUN mkdir /var/lib/influxdb3 && \
+    chown influxdb3:influxdb3 /var/lib/influxdb3
+
+RUN mkdir -p /usr/lib/influxdb3
+RUN chown -R root:root /usr/lib/influxdb3
+
+RUN mkdir /plugins && \
+    chown influxdb3:influxdb3 /plugins
+
+USER influxdb3
+
+RUN mkdir ~/.influxdb3
+
+ARG PACKAGE=influxdb3
+ENV PACKAGE=$PACKAGE
+ENV INFLUXDB3_PLUGIN_DIR=/plugins
+
+# Copy the prebuilt binary from the downloaded artifact
+COPY ./binary/influxdb3 /usr/bin/$PACKAGE
+
+COPY docker/entrypoint.sh /usr/bin/entrypoint.sh
+
+EXPOSE 8181
+
+ENV LOG_FILTER=info
+
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+
+CMD ["serve"] 

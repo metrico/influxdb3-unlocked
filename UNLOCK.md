@@ -271,9 +271,10 @@ This project maintains the same license as the original InfluxDB3-core while rem
 This project includes a GitHub Actions workflow (`.github/workflows/release.yml`) that automatically builds and releases both binary and Docker images when a new release is published.
 
 **What it does:**
-- Builds optimized Linux x64 binary with all enterprise features
-- Creates compressed archive with binary and Python dependencies
-- Builds and pushes Docker image to Docker Hub
+- Builds optimized Linux x64 binary with all enterprise features (with caching)
+- Creates compressed archive with binary
+- Builds Docker image using prebuilt binary (no rebuild)
+- Pushes Docker image to GitHub Container Registry
 - Attaches binary to GitHub release
 
 **Required Secrets:**
