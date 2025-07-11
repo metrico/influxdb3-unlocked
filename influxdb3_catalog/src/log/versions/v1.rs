@@ -195,8 +195,8 @@ pub(crate) enum LastCacheValueColumnsDef {
     AllNonKeyColumns,
 }
 
-/// The maximum allowed size for a last cache
-pub(crate) const LAST_CACHE_MAX_SIZE: usize = 10;
+/// The maximum allowed size for a last cache (removed crippled limit)
+pub(crate) const LAST_CACHE_MAX_SIZE: usize = 1_000_000;
 
 /// The size of the last cache
 ///
@@ -377,7 +377,7 @@ impl TryFrom<usize> for MaxCardinality {
     }
 }
 
-const DEFAULT_MAX_CARDINALITY: usize = 100_000;
+const DEFAULT_MAX_CARDINALITY: usize = 10_000_000;
 
 impl Default for MaxCardinality {
     fn default() -> Self {
@@ -397,7 +397,7 @@ impl From<MaxCardinality> for usize {
     }
 }
 
-const DEFAULT_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+const DEFAULT_MAX_AGE: Duration = Duration::from_secs(365 * 24 * 60 * 60); // 1 year
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MaxAge(Duration);

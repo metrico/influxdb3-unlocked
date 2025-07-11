@@ -315,8 +315,12 @@ impl Catalog {
 
             // If the request specifies the default hard-delete time, and the schema has an existing hard_delete_time,
             // use that for the default, so the DELETE operation is idempotent.
-            let resolved_hard_delete_time = if hard_delete_time.is_default() && let Some(existing) = db.hard_delete_time {
-                Some(existing)
+            let resolved_hard_delete_time = if hard_delete_time.is_default() {
+                if let Some(existing) = db.hard_delete_time {
+                    Some(existing)
+                } else {
+                    hard_delete_time.as_time(&self.time_provider, self.default_hard_delete_duration())
+                }
             } else {
                 hard_delete_time.as_time(&self.time_provider, self.default_hard_delete_duration())
             };
@@ -388,8 +392,12 @@ impl Catalog {
 
             // If the request specifies the default hard-delete time, and the schema has an existing hard_delete_time,
             // use that for the default, so the DELETE operation is idempotent.
-            let resolved_hard_delete_time = if hard_delete_time.is_default() && let Some(existing) = tbl_def.hard_delete_time {
-                Some(existing)
+            let resolved_hard_delete_time = if hard_delete_time.is_default() {
+                if let Some(existing) = tbl_def.hard_delete_time {
+                    Some(existing)
+                } else {
+                    hard_delete_time.as_time(&self.time_provider, self.default_hard_delete_duration())
+                }
             } else {
                 hard_delete_time.as_time(&self.time_provider, self.default_hard_delete_duration())
             };

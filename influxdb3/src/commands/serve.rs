@@ -165,7 +165,7 @@ pub struct Config {
     #[clap(
     long = "max-http-request-size",
     env = "INFLUXDB3_MAX_HTTP_REQUEST_SIZE",
-    default_value = "10485760", // 10 MiB
+    default_value = "1073741824", // 1 GiB (removed crippled limit)
     action,
     )]
     pub max_http_request_size: usize,
@@ -199,13 +199,13 @@ pub struct Config {
     pub disable_authz: Option<DisableAuthzList>,
 
     /// Duration that the Parquet files get arranged into. The data timestamps will land each
-    /// row into a file of this duration. 1m, 5m, and 10m are supported. These are known as
+    /// row into a file of this duration. 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, and 7d are supported. These are known as
     /// "generation 1" files. The compactor in Pro can compact these into larger and longer
     /// generations.
     #[clap(
         long = "gen1-duration",
         env = "INFLUXDB3_GEN1_DURATION",
-        default_value = "10m",
+        default_value = "1h",
         action
     )]
     pub gen1_duration: Gen1Duration,

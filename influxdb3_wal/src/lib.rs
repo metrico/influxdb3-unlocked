@@ -48,7 +48,7 @@ pub enum Error {
     #[error("wal is shutdown and not accepting writes")]
     Shutdown,
 
-    #[error("invalid gen1 duration {0}. Must be one of 1m, 5m, 10m")]
+    #[error("invalid gen1 duration {0}. Must be one of 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d")]
     InvalidGen1Duration(String),
 
     #[error("invalid WAL file path")]
@@ -207,6 +207,34 @@ impl Gen1Duration {
     pub fn new_5m() -> Self {
         Self(Duration::from_secs(300))
     }
+
+    pub fn new_10m() -> Self {
+        Self(Duration::from_secs(600))
+    }
+
+    pub fn new_30m() -> Self {
+        Self(Duration::from_secs(1800))
+    }
+
+    pub fn new_1h() -> Self {
+        Self(Duration::from_secs(3600))
+    }
+
+    pub fn new_6h() -> Self {
+        Self(Duration::from_secs(21600))
+    }
+
+    pub fn new_12h() -> Self {
+        Self(Duration::from_secs(43200))
+    }
+
+    pub fn new_1d() -> Self {
+        Self(Duration::from_secs(86400))
+    }
+
+    pub fn new_7d() -> Self {
+        Self(Duration::from_secs(604800))
+    }
 }
 
 impl FromStr for Gen1Duration {
@@ -217,6 +245,12 @@ impl FromStr for Gen1Duration {
             "1m" => Ok(Self(Duration::from_secs(60))),
             "5m" => Ok(Self(Duration::from_secs(300))),
             "10m" => Ok(Self(Duration::from_secs(600))),
+            "30m" => Ok(Self(Duration::from_secs(1800))),
+            "1h" => Ok(Self(Duration::from_secs(3600))),
+            "6h" => Ok(Self(Duration::from_secs(21600))),
+            "12h" => Ok(Self(Duration::from_secs(43200))),
+            "1d" => Ok(Self(Duration::from_secs(86400))),
+            "7d" => Ok(Self(Duration::from_secs(604800))),
             _ => Err(Error::InvalidGen1Duration(s.to_string())),
         }
     }
@@ -227,7 +261,7 @@ impl TryFrom<Duration> for Gen1Duration {
 
     fn try_from(dur: Duration) -> std::result::Result<Self, Self::Error> {
         match dur.as_secs() {
-            60 | 300 | 600 => Ok(Self(dur)),
+            60 | 300 | 600 | 1800 | 3600 | 21600 | 43200 | 86400 | 604800 => Ok(Self(dur)),
             d => Err(Error::InvalidGen1Duration(d.to_string())),
         }
     }
@@ -235,7 +269,7 @@ impl TryFrom<Duration> for Gen1Duration {
 
 impl Default for Gen1Duration {
     fn default() -> Self {
-        Self(Duration::from_secs(600))
+        Self(Duration::from_secs(3600)) // 1 hour default for better compaction
     }
 }
 

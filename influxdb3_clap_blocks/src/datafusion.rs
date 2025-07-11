@@ -26,7 +26,7 @@ pub struct IoxQueryDatafusionConfig {
     #[clap(
         long = "datafusion-max-parquet-fanout",
         env = "INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT",
-        default_value = "1000",
+        default_value = "10000", // Increased from 1000 for better compaction
         action
     )]
     pub max_parquet_fanout: usize,

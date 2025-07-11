@@ -10,7 +10,7 @@ use arrow_array::RecordBatch;
 use dashmap::DashMap;
 use iox_time::TimeProvider;
 
-const MAX_CAPACITY: usize = 10_000;
+const MAX_CAPACITY: usize = 100_000; // Increased from 10,000 for better monitoring
 
 /// This trait is not dyn compatible
 pub trait ToRecordBatch<E> {

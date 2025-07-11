@@ -165,14 +165,14 @@ pub struct LastCacheConfig {
     /// The number of entries per unique key column combination the cache will store
     ///
     /// Higher values can increase memory usage significantly
-    #[clap(long = "count", default_value = "1")]
+    #[clap(long = "count")]
     count: Option<LastCacheSize>,
 
     /// The time-to-live (TTL) for entries in a cache. This uses a humantime form: "10s", "1min 30sec", "3 hours"
     ///
     /// See the parse_duration docs for more details about acceptable forms:
     /// <https://docs.rs/humantime/2.1.0/humantime/fn.parse_duration.html>
-    #[clap(long = "ttl", default_value = "4 hours")]
+    #[clap(long = "ttl")]
     ttl: Option<Duration>,
 
     /// Give a name for the cache.
@@ -203,11 +203,11 @@ pub struct DistinctCacheConfig {
     columns: Vec<String>,
 
     /// The maximum number of distinct value combinations to hold in the cache
-    #[clap(long = "max-cardinality", default_value = "100000")]
+    #[clap(long = "max-cardinality")]
     max_cardinality: Option<NonZeroUsize>,
 
     /// The maximum age of an entry in the cache entered as a human-readable duration, e.g., "30d", "24h"
-    #[clap(long = "max-age", default_value = "1d")]
+    #[clap(long = "max-age")]
     max_age: Option<humantime::Duration>,
 
     /// Give the name of the cache.
