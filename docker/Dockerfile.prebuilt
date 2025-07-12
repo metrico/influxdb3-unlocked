@@ -17,12 +17,20 @@ RUN chown -R root:root /usr/lib/influxdb3
 RUN mkdir /plugins && \
     chown influxdb3:influxdb3 /plugins
 
+RUN mkdir -p /data && \
+    chown influxdb3:influxdb3 /data
+
+RUN mkdir -p /db && \
+    chown influxdb3:influxdb3 /db
+
 ARG PACKAGE=influxdb3
 ENV PACKAGE=$PACKAGE
+ENV INFLUXDB_VERSION=3.3.0
 ENV INFLUXDB3_NODE_ID=unlocked1
 ENV INFLUXDB3_PLUGIN_DIR=/plugins
 ENV INFLUXDB3_OBJECT_STORE=file
 ENV INFLUXDB3_DATA_DIR=/data
+ENV INFLUXDB_IOX_DB_DIR=/db
 ENV INFLUXDB3_GENERATION_DURATION=1h
 ENV INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d
 
@@ -44,4 +52,4 @@ ENV LOG_FILTER=info
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
-CMD ["serve"] 
+CMD ["serve", "--node-id", "unlocked1"] 
