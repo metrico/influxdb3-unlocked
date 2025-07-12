@@ -15,18 +15,19 @@ RUN chown -R root:root /usr/lib/influxdb3
 RUN mkdir /plugins && \
     chown influxdb3:influxdb3 /plugins
 
-USER influxdb3
-
-RUN mkdir ~/.influxdb3
-
 ARG PACKAGE=influxdb3
 ENV PACKAGE=$PACKAGE
 ENV INFLUXDB3_PLUGIN_DIR=/plugins
 
 # Copy the prebuilt binary from the downloaded artifact
 COPY ./binary/influxdb3 /usr/bin/$PACKAGE
-
+RUN chmod +x /usr/bin/$PACKAGE
 COPY docker/entrypoint.sh /usr/bin/entrypoint.sh
+RUN chmod +x /usr/bin/entrypoint.sh
+
+USER influxdb3
+
+RUN mkdir ~/.influxdb3
 
 EXPOSE 8181
 
