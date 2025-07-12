@@ -29,6 +29,10 @@ This fork removes the crippled limits from InfluxDB3-core (72h query restriction
 - **High cardinality support**: 10M unique values
 - **Configurable TTL** - Set cache retention as needed
 
+### 🔒 **Privacy & Control**
+- **Telemetry disabled by default** - No data collection unless explicitly enabled
+- **User-controlled settings** - All limits configurable via CLI or environment
+
 ## 🚀 Quick Start
 
 ### Docker (Recommended)
@@ -162,6 +166,20 @@ influxdb3 serve --row-group-write-size 2000000
 
 # Set custom HTTP request size limit (default: 1GB)
 influxdb3 serve --max-http-request-size 2gb
+```
+
+### **Telemetry Configuration**
+
+```bash
+# Telemetry is disabled by default for privacy
+# To enable telemetry (sends data to InfluxData):
+influxdb3 serve --disable-telemetry-upload=false
+
+# To use a custom telemetry endpoint:
+influxdb3 serve --telemetry-endpoint https://your-telemetry-server.com
+
+# Environment variable equivalent:
+export INFLUXDB3_TELEMETRY_DISABLE_UPLOAD=false
 ```
 
 ### **Docker Environment Variables**

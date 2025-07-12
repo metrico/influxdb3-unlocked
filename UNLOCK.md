@@ -56,6 +56,7 @@ Transform InfluxDB3-core from a limited "open core" version into a fully-feature
 | **Max Age** | 1 day | User-specified | `influxdb3/src/commands/create.rs` |
 | **Last Cache Count** | 1 | User-specified | `influxdb3/src/commands/create.rs` |
 | **Last Cache TTL** | 4 hours | User-specified | `influxdb3/src/commands/create.rs` |
+| **Telemetry** | Enabled | Disabled by default | `influxdb3/src/commands/serve.rs` |
 
 ## 🔧 Technical Changes Made
 
@@ -171,6 +172,16 @@ const MAX_CAPACITY: usize = 10_000;
 
 // AFTER (Unlocked)
 const MAX_CAPACITY: usize = 100_000; // Increased for better monitoring
+```
+
+### 9. Telemetry Configuration (`influxdb3/src/commands/serve.rs`)
+
+```rust
+// BEFORE (Crippled)
+default_value_t = false, // Telemetry enabled by default
+
+// AFTER (Unlocked)
+default_value_t = true, // Telemetry disabled by default for privacy
 ```
 
 ## ✅ Verification

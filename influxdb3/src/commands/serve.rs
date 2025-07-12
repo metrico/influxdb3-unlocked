@@ -402,7 +402,7 @@ pub struct Config {
     #[clap(
         long = "disable-telemetry-upload",
         env = "INFLUXDB3_TELEMETRY_DISABLE_UPLOAD",
-        default_value_t = false,
+        default_value_t = true,
         hide = true,
         action
     )]
