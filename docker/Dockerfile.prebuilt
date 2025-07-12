@@ -52,4 +52,4 @@ ENV LOG_FILTER=info
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
-CMD ["serve", "--node-id", "unlocked1"] 
+CMD ["serve", "--node-id", "unlocked1", "--data-dir", "/data"] 
