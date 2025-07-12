@@ -3,7 +3,7 @@ FROM ubuntu:24.04
 # Install the EXACT same packages as GitHub Actions
 RUN apt update \
     && apt install --yes binutils build-essential curl pkg-config libssl-dev clang lld git patchelf protobuf-compiler zstd libz-dev gettext-base software-properties-common --no-install-recommends \
-    && add-apt-repository -y ppa:deadsnakes/ppa && apt install python3.12 libpython3.12 \
+    && add-apt-repository -y ppa:deadsnakes/ppa && apt install -y python3.12 libpython3.12 --no-install-recommends \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && groupadd --gid 1500 influxdb3 \
     && useradd --uid 1500 --gid influxdb3 --shell /bin/bash --create-home influxdb3
