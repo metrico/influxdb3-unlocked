@@ -1,7 +1,7 @@
 FROM debian:bookworm-slim
 
 RUN apt update \
-    && apt install --yes ca-certificates gettext-base libssl3 wget curl --no-install-recommends \
+    && apt install --yes ca-certificates gettext-base libssl3 wget curl python3 python3-dev libpython3.11 libpython3.11-dev --no-install-recommends \
     && rm -rf /var/lib/{apt,dpkg,cache,log} \
     && groupadd --gid 1500 influxdb3 \
     && useradd --uid 1500 --gid influxdb3 --shell /bin/bash --create-home influxdb3
@@ -22,6 +22,8 @@ ENV INFLUXDB3_PLUGIN_DIR=/plugins
 # Copy the prebuilt binary from the downloaded artifact
 COPY ./binary/influxdb3 /usr/bin/$PACKAGE
 RUN chmod +x /usr/bin/$PACKAGE
+
+# Copy entrypoint script
 COPY docker/entrypoint.sh /usr/bin/entrypoint.sh
 RUN chmod +x /usr/bin/entrypoint.sh
 
