@@ -1,0 +1,28 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write
+
+jobs:
+  sync-upstream:
+    name: Sync with Upstream
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+      - name: Pull (Fast-Forward) upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v2.1
+        with:
+          upstream_repository: influxdata/influxdb
+          upstream_branch: main
+          target_branch: upstream
+          git_pull_args: --ff-only                    # optional arg use, defaults to simple 'pull'

@@ -662,7 +662,7 @@ impl TryFrom<usize> for MaxCardinality {
     }
 }
 
-const DEFAULT_MAX_CARDINALITY: usize = 100_000;
+const DEFAULT_MAX_CARDINALITY: usize = 10_000_000;
 
 impl Default for MaxCardinality {
     fn default() -> Self {
@@ -682,7 +682,7 @@ impl From<MaxCardinality> for usize {
     }
 }
 
-const DEFAULT_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+const DEFAULT_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours (user configurable)
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MaxAge(pub(crate) Duration);

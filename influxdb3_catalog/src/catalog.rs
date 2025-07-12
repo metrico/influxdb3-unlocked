@@ -78,8 +78,8 @@ pub const TIME_COLUMN_NAME: &str = "time";
 
 const DEFAULT_OPERATOR_TOKEN_NAME: &str = "_admin";
 
-/// Limit for the number of tag columns on a table
-pub(crate) const NUM_TAG_COLUMNS_LIMIT: usize = 250;
+/// Limit for the number of tag columns on a table (removed crippled limit)
+pub(crate) const NUM_TAG_COLUMNS_LIMIT: usize = usize::MAX;
 
 /// Represents the deletion status of a database or table in the catalog
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -206,13 +206,13 @@ impl Default for CatalogLimits {
 
 impl Catalog {
     /// Limit for the number of Databases that InfluxDB 3 Core can have
-    pub const NUM_DBS_LIMIT: usize = 5;
+    pub const NUM_DBS_LIMIT: usize = usize::MAX;
     /// Limit for the number of columns per table that InfluxDB 3 Core can have
-    pub const NUM_COLUMNS_PER_TABLE_LIMIT: usize = 500;
+    pub const NUM_COLUMNS_PER_TABLE_LIMIT: usize = usize::MAX;
     /// Limit for the number of tables across all DBs that InfluxDB 3 Core can have
-    pub const NUM_TABLES_LIMIT: usize = 2000;
+    pub const NUM_TABLES_LIMIT: usize = usize::MAX;
     /// Default duration for hard deletion of soft-deleted databases and tables
-    pub const DEFAULT_HARD_DELETE_DURATION: Duration = Duration::from_secs(60 * 60 * 72); // 72 hours
+    pub const DEFAULT_HARD_DELETE_DURATION: Duration = Duration::from_secs(10 * 365 * 24 * 60 * 60); // 10 years, effectively infinite
 
     pub async fn new(
         node_id: impl Into<Arc<str>>,

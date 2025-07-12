@@ -300,8 +300,8 @@ pub struct TrackedMemoryArrowWriter<W: Write + Send> {
     reservation: MemoryReservation,
 }
 
-/// Parquet row group write size
-pub const ROW_GROUP_WRITE_SIZE: usize = 100_000;
+/// The number of rows to write in each row group of the parquet file
+pub const ROW_GROUP_WRITE_SIZE: usize = 1_000_000; // Increased from 100,000 for better compaction
 
 impl<W: Write + Send> TrackedMemoryArrowWriter<W> {
     /// create a new `TrackedMemoryArrowWriter<`
@@ -398,8 +398,8 @@ mod tests {
             catalog_sequence_number: CatalogSequenceNumber::default(),
             databases: SerdeVecMap::new(),
             removed_files: SerdeVecMap::new(),
-            min_time: 0,
             max_time: 1,
+            min_time: 0,
             row_count: 0,
             parquet_size_bytes: 0,
         });
@@ -411,8 +411,8 @@ mod tests {
             catalog_sequence_number: CatalogSequenceNumber::default(),
             databases: SerdeVecMap::new(),
             removed_files: SerdeVecMap::new(),
-            max_time: 1,
             min_time: 0,
+            max_time: 1,
             row_count: 0,
             parquet_size_bytes: 0,
         });

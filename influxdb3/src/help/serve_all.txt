@@ -40,7 +40,8 @@ Examples:
 {}
   --data-dir <DIR>                 Location to store files locally [env: INFLUXDB3_DB_DIR=]
   --bucket <BUCKET>                Bucket name for cloud object storage [env: INFLUXDB3_BUCKET=]
-  --gen1-duration <DURATION>       Duration for Parquet file arrangement [default: 10m]
+  --gen1-duration <DURATION>       Duration for Parquet file arrangement [default: 1h]
+                                  Supported: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d
                                   [env: INFLUXDB3_GEN1_DURATION=]
   --gen1-lookback-duration <DURATION>
                                    The amount of time that the server looks back on startup
@@ -106,7 +107,7 @@ Examples:
                                   S3 compatible cache endpoint [env: OBJECT_STORE_CACHE_ENDPOINT=]
 
 {}
-  --max-http-request-size <SIZE>   Maximum size of HTTP requests [default: 10485760]
+  --max-http-request-size <SIZE>   Maximum size of HTTP requests [default: 1073741824]
                                   [env: INFLUXDB3_MAX_HTTP_REQUEST_SIZE=]
 
 {}
@@ -163,7 +164,7 @@ Examples:
                                   [env: INFLUXDB3_DATAFUSION_RUNTIME_TYPE=]
                                   [possible values: current-thread, multi-thread, multi-thread-alt]
   --datafusion-max-parquet-fanout <N>
-                                  Parquet file fanout limit [default: 1000]
+                                  Parquet file fanout limit [default: 10000]
                                   [env: INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=]
   --datafusion-use-cached-parquet-loader
                                   Use cached parquet loader
