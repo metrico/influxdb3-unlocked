@@ -43,6 +43,4 @@ ENV LOG_FILTER=info
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
-ENV 
-
 CMD ["serve"] 
