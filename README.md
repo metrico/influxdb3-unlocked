@@ -9,8 +9,7 @@ This fork removes the crippled limits from InfluxDB3-core (72h query restriction
 ### 🗄️ **Database & Storage**
 - **Unlimited databases** - Scale to any number of databases
 - **Unlimited tables** - No table count restrictions
-- **Unlimited columns** - No per-table column limits
-- **Unlimited tag columns** - Full tag flexibility
+- **Unlimited tags/columns** - No per-table column limits
 
 ### ⏱️ **Time & Query Performance**
 - **Unlimited query time ranges** - Query any historical data
@@ -35,164 +34,320 @@ This fork removes the crippled limits from InfluxDB3-core (72h query restriction
 
 ## 🚀 Quick Start
 
+### Required Parameters
+
+InfluxDB3 requires two essential parameters to start:
+
+- **`--object-store`**: Storage backend (use `file` for local storage)
+- **`--node-id`**: Unique identifier for this instance (use `local1` for single instances)
+
 ### Docker (Recommended)
 
 ```bash
 # Pull the image
 docker pull ghcr.io/metrico/influxdb3-unlocked:latest
 
-# Run with default settings (all limits removed)
-docker run -p 8181:8181 ghcr.io/metrico/influxdb3-unlocked:latest serve
-
-# Run with custom data directory
+# Basic run with local storage
 docker run -p 8181:8181 \
   -v /data:/var/lib/influxdb3 \
-  ghcr.io/metrico/influxdb3-unlocked:latest serve
+  ghcr.io/metrico/influxdb3-unlocked:latest serve \
+  --object-store file \
+  --node-id local1
 
-# Run with custom configuration
+# Run with S3/MinIO storage
 docker run -p 8181:8181 \
-  -e INFLUXDB3_DATA_DIR=/var/lib/influxdb3 \
-  -e INFLUXDB3_BIND_ADDR=0.0.0.0:8181 \
-  -e INFLUXDB3_LOG_FILTER=info \
+  -e INFLUXDB3_OBJECT_STORE=s3 \
+  -e INFLUXDB3_NODE_IDENTIFIER_PREFIX=host01 \
+  -e INFLUXDB3_BUCKET=my-influxdb-bucket \
+  -e INFLUXDB3_AWS_ACCESS_KEY_ID=your-access-key \
+  -e INFLUXDB3_AWS_SECRET_ACCESS_KEY=your-secret-key \
+  -e INFLUXDB3_AWS_ENDPOINT=http://minio:9000 \
+  -e INFLUXDB3_AWS_ALLOW_HTTP=true \
   ghcr.io/metrico/influxdb3-unlocked:latest serve
 ```
 
 ### Binary Download
 
-Download the latest release from [GitHub Releases](https://github.com/metrico/influxdb3-unlocked/releases) or build from source:
-
 ```bash
-# Extract and run
-tar -xzf influxdb3-unlocked-*.tar.gz
-./influxdb3 serve
+# Download and run
+curl -fsSL https://github.com/metrico/influxdb3-unlocked/releases/latest/download/influxdb3
+./influxdb3 serve --object-store file --node-id local1
 ```
 
-## ⚙️ Configuration
+### Health Check
+
+```bash
+curl http://127.0.0.1:8181/health
+# Expected response: OK
+```
+
+## 📊 Usage Examples
+
+### Insert Data
+
+#### Metrics (Line Protocol)
+```bash
+# Insert sensor data
+echo 'home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000' | \
+curl -v "http://127.0.0.1:8181/api/v2/write?org=company&bucket=sensors" --data-binary @-
+
+# Insert multiple metrics
+cat << EOF | curl -v "http://127.0.0.1:8181/api/v2/write?org=company&bucket=sensors" --data-binary @-
+home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000
+home,room=living temp=70.5,humidity=42.1 1640995200000000000
+home,room=bedroom temp=68.9,humidity=48.7 1640995200000000000
+EOF
+```
+
+#### Logs (Syslog Format)
+```bash
+# Insert log entry
+echo 'syslog,appname=myapp,facility=console,host=myhost,severity=warning facility_code=14i,message="warning message here",severity_code=4i,procid="12345",timestamp=1640995200000000000,version=1' | \
+curl -v "http://127.0.0.1:8181/api/v2/write?org=company&bucket=logs" --data-binary @-
+```
+
+#### Traces (OpenTelemetry)
+```bash
+# Insert trace span
+echo 'spans end_time_unix_nano="2025-01-26 20:50:25.6893952 +0000 UTC",instrumentation_library_name="tracegen",kind="SPAN_KIND_INTERNAL",name="okey-dokey",net.peer.ip="1.2.3.4",parent_span_id="d5270e78d85f570f",peer.service="tracegen-client",service.name="tracegen",span.kind="server",span_id="4c28227be6a010e1",status_code="STATUS_CODE_OK",trace_id="7d4854815225332c9834e6dbf85b9380"' | \
+curl -v "http://127.0.0.1:8181/api/v2/write?org=company&bucket=traces" --data-binary @-
+```
+
+### Query Data
+
+#### List Databases
+```bash
+influxdb3 query "SHOW DATABASES"
+```
+
+#### Query Metrics
+```bash
+# Query temperature data
+influxdb3 query --database sensors "SELECT * FROM home WHERE temp > 70 LIMIT 5"
+
+# Time range query
+influxdb3 query --database sensors "SELECT room, temp FROM home WHERE time > now() - 1h"
+
+# Aggregation
+influxdb3 query --database sensors "SELECT room, AVG(temp) as avg_temp FROM home GROUP BY room"
+```
+
+#### Query Logs
+```bash
+# Search by message content
+influxdb3 query --database logs "SELECT * FROM syslog WHERE message LIKE '%warning%'"
+
+# Regex search
+influxdb3 query --database logs "SELECT * FROM syslog WHERE message ~ '.+warning'"
+
+# Filter by severity
+influxdb3 query --database logs "SELECT * FROM syslog WHERE severity = 'error'"
+```
+
+#### Query Traces
+```bash
+# Query all spans
+influxdb3 query --database traces "SELECT * FROM spans"
+
+# Filter by service
+influxdb3 query --database traces "SELECT * FROM spans WHERE service.name = 'tracegen'"
+
+# Find slow operations
+influxdb3 query --database traces "SELECT name, end_time_unix_nano - time as duration FROM spans ORDER BY duration DESC LIMIT 10"
+```
+
+## 🔧 Configuration
 
 ### Environment Variables
 
 ```bash
+# Required settings
+INFLUXDB3_OBJECT_STORE=file                    # Storage backend (file, memory, s3, etc.)
+INFLUXDB3_NODE_IDENTIFIER_PREFIX=local1        # Unique node identifier
+
 # Core settings
-INFLUXDB3_DATA_DIR=/var/lib/influxdb3
-INFLUXDB3_BIND_ADDR=0.0.0.0:8181
+INFLUXDB3_HTTP_BIND_ADDR=0.0.0.0:8181
 INFLUXDB3_LOG_FILTER=info
 
-# Advanced compaction (unlocked durations)
-INFLUXDB3_GENERATION_DURATION=1h
-INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d
-
 # Performance tuning
-INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=10000
-INFLUXDB3_ROW_GROUP_WRITE_SIZE=1000000
+INFLUXDB3_GEN1_DURATION=1h                     # WAL flush frequency
+INFLUXDB3_GEN1_LOOKBACK_DURATION=1month        # Startup data loading
+INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=10000  # Parquet file handling
+INFLUXDB3_MAX_HTTP_REQUEST_SIZE=1073741824     # 1GB request limit
+
+# S3/MinIO settings (when using object-store=s3)
+INFLUXDB3_BUCKET=my-influxdb-bucket
+INFLUXDB3_AWS_ACCESS_KEY_ID=your-access-key
+INFLUXDB3_AWS_SECRET_ACCESS_KEY=your-secret-key
+INFLUXDB3_AWS_ENDPOINT=http://minio:9000
+INFLUXDB3_AWS_ALLOW_HTTP=true
 ```
 
-### Command Line Examples
+### Object Store Options
 
+#### Local File Storage
 ```bash
-# Start with custom generation duration
-influxdb3 serve --generation-duration 1h
+influxdb3 serve --object-store file --node-id local1
+```
 
-# Start with multiple compaction levels
+#### S3-Compatible Storage (MinIO, AWS S3)
+```bash
+# MinIO
 influxdb3 serve \
-  --generation-duration 1h \
-  --compaction-levels 1h,6h,1d,7d
+  --object-store s3 \
+  --node-id host01 \
+  --bucket my-influxdb-bucket \
+  --aws-access-key-id your-access-key \
+  --aws-secret-access-key your-secret-key \
+  --aws-endpoint http://minio:9000 \
+  --aws-allow-http
 
-# Create unlimited databases
-influxdb3 create database db1
-influxdb3 create database db2
-# ... unlimited databases
-
-# Create tables with unlimited columns
-influxdb3 create table db1.metrics \
-  --columns timestamp,value,host,region,service,version,environment
-# ... unlimited columns
+# AWS S3
+influxdb3 serve \
+  --object-store s3 \
+  --node-id host01 \
+  --bucket my-influxdb-bucket \
+  --aws-access-key-id your-access-key \
+  --aws-secret-access-key your-secret-key \
+  --aws-region us-east-1
 ```
 
-## 🔧 Key Settings
+#### In-Memory Storage (Testing)
+```bash
+influxdb3 serve --object-store memory --node-id test1
+```
 
-### **Generation Duration** (WAL Flush Frequency)
-Controls how often data is flushed from memory to disk as Parquet files.
+## 🔌 Integrations
+
+### HTTP API
+
+InfluxDB3 supports both Flight (gRPC) APIs and HTTP APIs. For HTTP queries, use the `/api/v3/query_sql` or `/api/v3/query_influxql` endpoints.
+
+#### Query with URL Parameters
+```bash
+# GET request with URL-encoded parameters
+curl -G "http://localhost:8181/api/v3/query_sql" \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --data-urlencode "db=sensors" \
+  --data-urlencode "q=SELECT * FROM home WHERE temp > 70 LIMIT 5"
+
+# Response formats: pretty, jsonl, parquet, csv, json (default)
+curl -G "http://localhost:8181/api/v3/query_sql" \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --data-urlencode "db=sensors" \
+  --data-urlencode "q=SELECT room, AVG(temp) FROM home GROUP BY room" \
+  --data-urlencode "format=csv"
+```
+
+#### Query with JSON Payload
+```bash
+# POST request with JSON parameters
+curl http://localhost:8181/api/v3/query_sql \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "db": "sensors",
+    "q": "SELECT * FROM home WHERE time > now() - 1h",
+    "format": "json"
+  }'
+```
+
+#### Write Data via HTTP API
+```bash
+# Write metrics using HTTP API
+curl -X POST "http://localhost:8181/api/v2/write?org=company&bucket=sensors" \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --data-binary 'home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000'
+
+# Write multiple data points
+curl -X POST "http://localhost:8181/api/v2/write?org=company&bucket=sensors" \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --data-binary 'home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000
+home,room=living temp=70.5,humidity=42.1 1640995200000000000'
+```
+
+### Python Client
+
+Install the official InfluxDB3 Python client:
 
 ```bash
-# Default: 10 minutes (frequent flushing)
-influxdb3 serve --generation-duration 10m
-
-# For better performance: 1 hour
-influxdb3 serve --generation-duration 1h
-
-# For historical data: 1 day
-influxdb3 serve --generation-duration 1d
-
-# Available options: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d
+pip install influxdb3-python
 ```
 
-### **Compaction Levels** (Multi-level Compaction)
-Defines how data is compacted across multiple time periods for better query performance.
+#### Basic Usage
+```python
+from influxdb_client_3 import InfluxDBClient3
+
+# Connect to your database
+client = InfluxDBClient3(
+    token='YOUR_TOKEN',
+    host='http://localhost:8181',
+    database='sensors'
+)
+
+# Write data
+client.write('home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000')
+
+# Query data
+result = client.query('SELECT * FROM home WHERE temp > 70 LIMIT 5')
+for record in result:
+    print(f"Room: {record['room']}, Temp: {record['temp']}")
+
+# Close connection
+client.close()
+```
+
+#### Advanced Usage
+```python
+from influxdb_client_3 import InfluxDBClient3
+import pandas as pd
+
+client = InfluxDBClient3(
+    token='YOUR_TOKEN',
+    host='http://localhost:8181',
+    database='sensors'
+)
+
+# Query with time range
+query = """
+SELECT room, temp, humidity 
+FROM home 
+WHERE time > now() - 1h 
+ORDER BY time DESC
+"""
+
+# Get results as pandas DataFrame
+df = client.query_dataframe(query)
+print(df.head())
+
+# Write data from pandas DataFrame
+data = pd.DataFrame({
+    'room': ['kitchen', 'living', 'bedroom'],
+    'temp': [72.1, 70.5, 68.9],
+    'humidity': [45.2, 42.1, 48.7]
+})
+
+client.write_dataframe(data, data_frame_measurement_name='home')
+
+client.close()
+```
+
+### Grafana Integration
+
+Use the [FlightSQL datasource](https://github.com/influxdata/grafana-flightsql-datasource) in Grafana:
 
 ```bash
-# Default: Single level (10m)
-influxdb3 serve --compaction-levels 10m
-
-# Recommended: Multi-level compaction
-influxdb3 serve --compaction-levels 1h,6h,1d,7d
-
-# Aggressive: Longer periods for historical data
-influxdb3 serve --compaction-levels 6h,1d,7d,30d
+# Grafana configuration
+# Host: http://localhost:8181
+# Database: your_database_name
+# Authentication: None (or configure as needed)
 ```
 
-### **Cache Configuration**
-Configure distinct caches for improved query performance.
+### Generic FlightSQL Drivers
 
-```bash
-# Create cache with custom settings
-influxdb3 create distinct_cache \
-  --database mydb \
-  --table metrics \
-  --columns host,region \
-  --max-cardinality 1000000 \
-  --max-age 24h
-
-# Available max-age formats: 1h, 24h, 7d, 30d, etc.
-```
-
-### **Performance Tuning**
-
-```bash
-# Increase parquet fanout for better file handling
-influxdb3 serve --datafusion-max-parquet-fanout 20000
-
-# Increase row group size for better compression
-influxdb3 serve --row-group-write-size 2000000
-
-# Set custom HTTP request size limit (default: 1GB)
-influxdb3 serve --max-http-request-size 2gb
-```
-
-### **Telemetry Configuration**
-
-```bash
-# Telemetry is disabled by default for privacy
-# To enable telemetry (sends data to InfluxData):
-influxdb3 serve --disable-telemetry-upload=false
-
-# To use a custom telemetry endpoint:
-influxdb3 serve --telemetry-endpoint https://your-telemetry-server.com
-
-# Environment variable equivalent:
-export INFLUXDB3_TELEMETRY_DISABLE_UPLOAD=false
-```
-
-### **Docker Environment Variables**
-
-```bash
-# Run with custom settings
-docker run -p 8181:8181 \
-  -e INFLUXDB3_GENERATION_DURATION=1h \
-  -e INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d \
-  -e INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=15000 \
-  -e INFLUXDB3_LOG_FILTER=debug \
-  ghcr.io/metrico/influxdb3-unlocked:latest serve
-```
+- [flightsql-dbapi-python](https://github.com/influxdata/flightsql-dbapi)
+- [influxdb_iox_client-rust](https://crates.io/crates/influxdb_iox_client)
+- [influxdb-iox-client-go](https://github.com/influxdata/influxdb-iox-client-go)
 
 ## 🔄 Backward Compatibility
 
@@ -212,54 +367,29 @@ docker run -p 8181:8181 \
 ## 🏗️ Building from Source
 
 ```bash
-# Clone the repository
+# Clone and build
 git clone https://github.com/metrico/influxdb3-unlocked.git
 cd influxdb3-unlocked
-
-# Build with all enterprise features
-cargo build --release --package influxdb3 \
-  --no-default-features \
-  --features aws,gcp,azure,jemalloc_replacing_malloc
+cargo build --release --package influxdb3
 
 # Run the built binary
-./target/release/influxdb3 serve
-```
-
-## 🔧 Development
-
-### Prerequisites
-- Rust 1.88+
-- Python 3.x development headers
-- Build tools (gcc, make, etc.)
-
-### Testing
-```bash
-# Run all tests
-cargo test
-
-# Run specific test suite
-cargo test --package influxdb3
+./target/release/influxdb3 serve --object-store file --node-id local1
 ```
 
 ## 📦 Releases
 
-This project includes automated GitHub Actions that:
-- Build optimized Linux x64 binaries
-- Create Docker images
-- Push to GitHub Container Registry
-- Create GitHub releases with binaries
+Automated GitHub Actions provide:
+- Optimized Linux x64 binaries
+- Docker images pushed to GitHub Container Registry
+- GitHub releases with binaries
 
 ### Docker Images
 - `ghcr.io/metrico/influxdb3-unlocked:latest`
 - `ghcr.io/metrico/influxdb3-unlocked:v3.3.0-nightly` (versioned)
 
-## 🤝 Contributing
-
-This fork is designed to be a drop-in replacement for InfluxDB3-core. All contributions that maintain backward compatibility are welcome.
-
 ## 📚 Documentation
 
-For detailed usage, configuration, and API documentation, refer to the [official InfluxDB3 documentation](https://docs.influxdata.com/influxdb/v3/).
+For detailed technical changes and implementation details, see [UNLOCK.md](UNLOCK.md).
 
 ## 📄 License
 
@@ -267,8 +397,6 @@ This project maintains full compliance with the original InfluxDB3-core licenses
 
 - **Apache License 2.0** - See [LICENSE-APACHE](LICENSE-APACHE)
 - **MIT License** - See [LICENSE-MIT](LICENSE-MIT)
-
-This fork is fully compliant with all included licenses. 
 
 ## 🔗 Links
 
