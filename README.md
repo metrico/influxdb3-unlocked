@@ -2,32 +2,32 @@
 
 > **InfluxDB3 Core without artificial limitations**
 
-This fork lifts several limits from InfluxDB3-core, unlocking enterprise-like capabilities while maintaining full backward compatibility with the core version.
+This fork removes the crippled limits from InfluxDB3-core (72h query restrictions, low retention limits, database/table caps), unlocking enterprise-grade capabilities while maintaining full backward compatibility.
 
 ## ✨ What's Unlocked
 
-### 🗄️ **Database & Storage Limits**
-- **Databases**: Unlimited _(was 5)_
-- **Tables**: Unlimited _(was 2,000)_
-- **Columns per table**: Unlimited _(was 500)_
-- **Tag columns**: Unlimited _(was 100)_
+### 🗄️ **Database & Storage**
+- **Unlimited databases** - Scale to any number of databases
+- **Unlimited tables** - No table count restrictions
+- **Unlimited columns** - No per-table column limits
+- **Unlimited tag columns** - Full tag flexibility
 
-### ⏱️ **Time & Query Limits**
-- **Query time range**: Unlimited _(was 72h)_
-- **Hard delete duration**: Unlimited _(was 72h)_
-- **HTTP request size**: 1GB _(was 10MB)_
+### ⏱️ **Time & Query Performance**
+- **Unlimited query time ranges** - Query any historical data
+- **Unlimited retention periods** - Keep data as long as needed
+- **1GB HTTP request size** - Handle large batch operations
 
-### 🔧 **Performance & Compaction**
-- **Generation durations**: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d (was 1m, 5m, 10m only)
-- **Default generation**: 10 minutes (unchanged - for frequent flushing)
-- **Parquet fanout**: 10,000 (was 1,000)
-- **Row group size**: 1M rows (was 100K)
-- **System events**: 100K capacity (was 10K)
+### 🔧 **Advanced Compaction**
+- **Extended generation durations**: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d
+- **Multi-level compaction** - Optimize for different time scales
+- **Enhanced parquet fanout**: 10,000 files
+- **Larger row groups**: 1M rows for better compression
+- **Increased system capacity**: 100K events
 
-### 💾 **Cache & Memory**
-- **Last cache size**: 1M entries (was 10)
-- **Max cardinality**: 10M unique values (was 100K)
-- **Cache TTL**: 24 hours (user configurable)
+### 💾 **Flexible Caching**
+- **Large last cache**: 1M entries
+- **High cardinality support**: 10M unique values
+- **Configurable TTL** - Set cache retention as needed
 
 ## 🚀 Quick Start
 
