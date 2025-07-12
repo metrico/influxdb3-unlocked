@@ -20,6 +20,10 @@ RUN mkdir /plugins && \
 ARG PACKAGE=influxdb3
 ENV PACKAGE=$PACKAGE
 ENV INFLUXDB3_PLUGIN_DIR=/plugins
+ENV INFLUXDB3_OBJECT_STORE=file
+ENV INFLUXDB3_DATA_DIR=/data
+ENV INFLUXDB3_GENERATION_DURATION=1h
+ENV INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d
 
 # Copy the prebuilt binary from the downloaded artifact
 COPY ./binary/influxdb3 /usr/bin/$PACKAGE
@@ -38,5 +42,7 @@ EXPOSE 8181
 ENV LOG_FILTER=info
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+
+ENV 
 
 CMD ["serve"] 
