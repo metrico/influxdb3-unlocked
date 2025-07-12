@@ -269,7 +269,7 @@ impl TryFrom<Duration> for Gen1Duration {
 
 impl Default for Gen1Duration {
     fn default() -> Self {
-        Self(Duration::from_secs(3600)) // 1 hour default for better compaction
+        Self(Duration::from_secs(600)) // 10 minutes default (original)
     }
 }
 

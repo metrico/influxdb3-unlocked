@@ -397,7 +397,7 @@ impl From<MaxCardinality> for usize {
     }
 }
 
-const DEFAULT_MAX_AGE: Duration = Duration::from_secs(365 * 24 * 60 * 60); // 1 year
+const DEFAULT_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60); // 24 hours (user configurable)
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MaxAge(Duration);

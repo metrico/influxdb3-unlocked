@@ -1,68 +1,264 @@
-<div align="center">
- <picture>
-    <source media="(prefers-color-scheme: light)" srcset="assets/influxdb-logo.png">
-    <source media="(prefers-color-scheme: dark)" srcset="assets/influxdb-logo-dark.png">
-    <img src="assets/influxdb-logo.png" alt="InfluxDB Logo" width="600">
-  </picture>
- <p>
-</div>
+# InfluxDB3 Unlocked 🚀
 
-InfluxDB Core is a database built to collect, process, transform, and store event and time series data. It is ideal for use cases that require real-time ingest and fast query response times to build user interfaces, monitoring, and automation solutions.
+> **InfluxDB3 Core without artificial limitations**
 
-Common use cases include:
+This fork lifts several limits from InfluxDB3-core, unlocking enterprise-like capabilities while maintaining full backward compatibility with the core version.
 
-- Monitoring sensor data
-- Server monitoring
-- Application performance monitoring
-- Network monitoring
-- Financial market and trading analytics
-- Behavioral analytics
+## ✨ What's Unlocked
 
-InfluxDB is optimized for scenarios where near real-time data monitoring is essential and queries 
-need to return quickly to support user experiences such as dashboards and interactive user interfaces.
+### 🗄️ **Database & Storage Limits**
+- **Databases**: Unlimited _(was 5)_
+- **Tables**: Unlimited _(was 2,000)_
+- **Columns per table**: Unlimited _(was 500)_
+- **Tag columns**: Unlimited _(was 100)_
 
-InfluxDB 3 Core’s feature highlights include:
+### ⏱️ **Time & Query Limits**
+- **Query time range**: Unlimited _(was 72h)_
+- **Hard delete duration**: Unlimited _(was 72h)_
+- **HTTP request size**: 1GB _(was 10MB)_
 
-- Diskless architecture with object storage support (or local disk with no dependencies)
-- Fast query response times (under 10ms for last-value queries, or 30ms for distinct metadata)
-- Embedded Python VM for plugins and triggers
-- Parquet file persistence
-- Compatibility with InfluxDB 1.x and 2.x write APIs
-- Compatability with InfluxDB 1.x query API (InfluxQL)
-- SQL query engine with support for FlightSQL and HTTP query API
+### 🔧 **Performance & Compaction**
+- **Generation durations**: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d (was 1m, 5m, 10m only)
+- **Default generation**: 10 minutes (unchanged - for frequent flushing)
+- **Parquet fanout**: 10,000 (was 1,000)
+- **Row group size**: 1M rows (was 100K)
+- **System events**: 100K capacity (was 10K)
 
-## Project Status
+### 💾 **Cache & Memory**
+- **Last cache size**: 1M entries (was 10)
+- **Max cardinality**: 10M unique values (was 100K)
+- **Cache TTL**: 24 hours (user configurable)
 
-InfluxDB 3 Core is GA as of April 15, 2025! We plan to have monthly point releases for the following six months, with patch releases as needed. We will move to a quarterly cadence after that for 3-4 releases, after which we'll reevaluate our release schedule.
+## 🚀 Quick Start
 
-Join the [InfluxDB3 Discord](https://discord.gg/vZe2w2Ds8B) 
-or the public channels below to share your feedback, feature requests, and bug reports.
+### Docker (Recommended)
 
-See the [InfluxDB 3 Core & Enterprise GA release announcement here](https://www.influxdata.com/blog/influxdb-3-oss-ga/) 
-or dig into the [InfluxDB 3 getting started guide here](https://docs.influxdata.com/influxdb3/core/get-started/).
+```bash
+# Pull the image
+docker pull ghcr.io/metrico/influxdb3-unlocked:latest
 
-## Learn InfluxDB
-[Documentation](https://docs.influxdata.com/) | [Community Forum](https://community.influxdata.com/) | [Community Slack](https://www.influxdata.com/slack/) | [Blog](https://www.influxdata.com/blog/) | [InfluxDB University](https://university.influxdata.com/) | [YouTube](https://www.youtube.com/@influxdata8893)
+# Run with default settings (all limits removed)
+docker run -p 8181:8181 ghcr.io/metrico/influxdb3-unlocked:latest serve
 
-Try **InfluxDB Cloud** for free and get started fast with no local setup required. Click [here](https://cloud2.influxdata.com/signup) to start building your application on InfluxDB Cloud.
+# Run with custom data directory
+docker run -p 8181:8181 \
+  -v /data:/var/lib/influxdb3 \
+  ghcr.io/metrico/influxdb3-unlocked:latest serve
 
+# Run with custom configuration
+docker run -p 8181:8181 \
+  -e INFLUXDB3_DATA_DIR=/var/lib/influxdb3 \
+  -e INFLUXDB3_BIND_ADDR=0.0.0.0:8181 \
+  -e INFLUXDB3_LOG_FILTER=info \
+  ghcr.io/metrico/influxdb3-unlocked:latest serve
+```
 
-## Installation
-We have nightly and versioned Docker images, Debian packages, RPM packages, and tarballs of InfluxDB available on the [InfluxData downloads page](https://portal.influxdata.com/downloads/). We also provide the InfluxDB command line interface (CLI) client as a separate binary available at the same location.
+### Binary Download
 
-- For v1 installation, use the [main 1.x branch](https://github.com/influxdata/influxdb/tree/master-1.x) or [install InfluxDB OSS directly](https://docs.influxdata.com/influxdb/v1/introduction/install/#installing-influxdb-oss).
-- For v2 installation, use the [main 2.x branch](https://github.com/influxdata/influxdb/tree/main-2.x).
-- For InfluxDB 3 Core see the [InfluxDB 3 Core getting started guide](https://docs.influxdata.com/influxdb3/core/get-started/).
-- For InfluxDB 3 Enterprise see the [InfluxDB 3 Enterprise getting started guide](https://docs.influxdata.com/influxdb3/enterprise/get-started/).
+Download the latest release from [GitHub Releases](https://github.com/metrico/influxdb3-unlocked/releases) or build from source:
 
-If you are interested in building from source, see the [building from source](CONTRIBUTING.md#building-from-source) guide for contributors.
+```bash
+# Extract and run
+tar -xzf influxdb3-unlocked-*.tar.gz
+./influxdb3 serve
+```
 
-To begin using InfluxDB, visit our [Getting Started with InfluxDB](https://docs.influxdata.com/influxdb/v1/introduction/get-started/) documentation.
+## ⚙️ Configuration
 
+### Environment Variables
 
-## License
-The open source software we build is licensed under the permissive MIT or Apache 2 licenses at the user's choosing. We’ve long held the view that our open source code should be truly open and our commercial code should be separate and closed. 
+```bash
+# Core settings
+INFLUXDB3_DATA_DIR=/var/lib/influxdb3
+INFLUXDB3_BIND_ADDR=0.0.0.0:8181
+INFLUXDB3_LOG_FILTER=info
 
+# Advanced compaction (unlocked durations)
+INFLUXDB3_GENERATION_DURATION=1h
+INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d
 
-## Interested in joining the team building InfluxDB?
-Check out current job openings at [www.influxdata.com/careers](https://www.influxdata.com/careers) today!
+# Performance tuning
+INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=10000
+INFLUXDB3_ROW_GROUP_WRITE_SIZE=1000000
+```
+
+### Command Line Examples
+
+```bash
+# Start with custom generation duration
+influxdb3 serve --generation-duration 1h
+
+# Start with multiple compaction levels
+influxdb3 serve \
+  --generation-duration 1h \
+  --compaction-levels 1h,6h,1d,7d
+
+# Create unlimited databases
+influxdb3 create database db1
+influxdb3 create database db2
+# ... unlimited databases
+
+# Create tables with unlimited columns
+influxdb3 create table db1.metrics \
+  --columns timestamp,value,host,region,service,version,environment
+# ... unlimited columns
+```
+
+## 🔧 Key Settings
+
+### **Generation Duration** (WAL Flush Frequency)
+Controls how often data is flushed from memory to disk as Parquet files.
+
+```bash
+# Default: 10 minutes (frequent flushing)
+influxdb3 serve --generation-duration 10m
+
+# For better performance: 1 hour
+influxdb3 serve --generation-duration 1h
+
+# For historical data: 1 day
+influxdb3 serve --generation-duration 1d
+
+# Available options: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d
+```
+
+### **Compaction Levels** (Multi-level Compaction)
+Defines how data is compacted across multiple time periods for better query performance.
+
+```bash
+# Default: Single level (10m)
+influxdb3 serve --compaction-levels 10m
+
+# Recommended: Multi-level compaction
+influxdb3 serve --compaction-levels 1h,6h,1d,7d
+
+# Aggressive: Longer periods for historical data
+influxdb3 serve --compaction-levels 6h,1d,7d,30d
+```
+
+### **Cache Configuration**
+Configure distinct caches for improved query performance.
+
+```bash
+# Create cache with custom settings
+influxdb3 create distinct_cache \
+  --database mydb \
+  --table metrics \
+  --columns host,region \
+  --max-cardinality 1000000 \
+  --max-age 24h
+
+# Available max-age formats: 1h, 24h, 7d, 30d, etc.
+```
+
+### **Performance Tuning**
+
+```bash
+# Increase parquet fanout for better file handling
+influxdb3 serve --datafusion-max-parquet-fanout 20000
+
+# Increase row group size for better compression
+influxdb3 serve --row-group-write-size 2000000
+
+# Set custom HTTP request size limit (default: 1GB)
+influxdb3 serve --max-http-request-size 2gb
+```
+
+### **Docker Environment Variables**
+
+```bash
+# Run with custom settings
+docker run -p 8181:8181 \
+  -e INFLUXDB3_GENERATION_DURATION=1h \
+  -e INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d \
+  -e INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=15000 \
+  -e INFLUXDB3_LOG_FILTER=debug \
+  ghcr.io/metrico/influxdb3-unlocked:latest serve
+```
+
+## 🔄 Backward Compatibility
+
+✅ **100% Compatible** with existing InfluxDB3 applications:
+- All APIs remain unchanged
+- Configuration files work without modification
+- Client applications continue to function
+- Data integrity preserved
+
+## 📊 Performance Impact
+
+- **No performance degradation** - limits were artificial, not performance-based
+- **Better resource utilization** - system can use available hardware efficiently
+- **Improved scalability** - handles enterprise-scale workloads
+- **Flexible optimization** - cache and memory settings can be tuned
+
+## 🏗️ Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/metrico/influxdb3-unlocked.git
+cd influxdb3-unlocked
+
+# Build with all enterprise features
+cargo build --release --package influxdb3 \
+  --no-default-features \
+  --features aws,gcp,azure,jemalloc_replacing_malloc
+
+# Run the built binary
+./target/release/influxdb3 serve
+```
+
+## 🔧 Development
+
+### Prerequisites
+- Rust 1.88+
+- Python 3.x development headers
+- Build tools (gcc, make, etc.)
+
+### Testing
+```bash
+# Run all tests
+cargo test
+
+# Run specific test suite
+cargo test --package influxdb3
+```
+
+## 📦 Releases
+
+This project includes automated GitHub Actions that:
+- Build optimized Linux x64 binaries
+- Create Docker images
+- Push to GitHub Container Registry
+- Create GitHub releases with binaries
+
+### Docker Images
+- `ghcr.io/metrico/influxdb3-unlocked:latest`
+- `ghcr.io/metrico/influxdb3-unlocked:v3.3.0-nightly` (versioned)
+
+## 🤝 Contributing
+
+This fork is designed to be a drop-in replacement for InfluxDB3-core. All contributions that maintain backward compatibility are welcome.
+
+## 📚 Documentation
+
+For detailed usage, configuration, and API documentation, refer to the [official InfluxDB3 documentation](https://docs.influxdata.com/influxdb/v3/).
+
+## 📄 License
+
+This project maintains full compliance with the original InfluxDB3-core licenses:
+
+- **Apache License 2.0** - See [LICENSE-APACHE](LICENSE-APACHE)
+- **MIT License** - See [LICENSE-MIT](LICENSE-MIT)
+
+This fork is fully compliant with all included licenses. 
+
+## 🔗 Links
+
+- **Original Project**: [InfluxDB3-core](https://github.com/influxdata/influxdb3)
+- **Documentation**: [UNLOCK.md](UNLOCK.md) - Detailed technical changes
+- **Issues**: [GitHub Issues](https://github.com/metrico/influxdb3-unlocked/issues)
+- **Releases**: [GitHub Releases](https://github.com/metrico/influxdb3-unlocked/releases)
+
+---
+
+**🎉 Enjoy unlocked InfluxDB3 Core performance!**
