@@ -33,6 +33,7 @@ ENV INFLUXDB3_DATA_DIR=/data
 ENV INFLUXDB_IOX_DB_DIR=/db
 ENV INFLUXDB3_GENERATION_DURATION=1h
 ENV INFLUXDB3_COMPACTION_LEVELS=1h,6h,1d,7d
+ENV INFLUXDB3_TELEMETRY_DISABLE_UPLOAD=true
 
 # Copy the prebuilt binary from the downloaded artifact
 COPY ./binary/influxdb3 /usr/bin/$PACKAGE
@@ -52,4 +53,4 @@ ENV LOG_FILTER=info
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 
-CMD ["serve", "--node-id", "unlocked1", "--data-dir", "/data"] 
+CMD ["serve", "--node-id", "unlocked1", "--data-dir", "/data", "--disable-telemetry-upload"] 
