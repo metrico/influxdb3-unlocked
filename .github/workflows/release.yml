@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build & Release InfluxDB3 Unlocked
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -65,15 +65,13 @@ jobs:
       - name: Create release archive
         run: |
           mkdir -p release
-          cp "target/$PROFILE/$PACKAGE" release/
-          tar -czf influxdb3-unlocked-${VERSION}-linux-x64.tar.gz -C release .
-          rm -rf release
+          cp "./target/$PROFILE/$PACKAGE" release/influxdb3
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: influxdb3-binary
-          path: target/$PROFILE/$PACKAGE
+          name: influxdb3
+          path: ./release/influxdb3
           retention-days: 1
 
       - name: Release
@@ -81,8 +79,8 @@ jobs:
         if: github.ref_type == 'tag'
         with:
           files: |
-            influxdb3-unlocked-${VERSION}-linux-x64.tar.gz
-
+            ./release/influxdb3
+            
   build-docker:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
@@ -97,11 +95,11 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
-          name: influxdb3-binary
+          name: influxdb3
           path: ./binary
 
       - name: Log in to the GHCR registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -117,8 +115,8 @@ jobs:
           file: ./docker/Dockerfile.prebuilt
           push: true
           tags: |
-            ghcr.io/${{ github.actor }}/influxdb3-unlocked:latest
-            ghcr.io/${{ github.actor }}/influxdb3-unlocked:${{ needs.build-binary.outputs.version }}
+            ghcr.io/metrico/influxdb3-unlocked:latest
+            ghcr.io/metrico/influxdb3-unlocked:${{ needs.build-binary.outputs.version }}
           build-args: |
             PACKAGE=influxdb3
           cache-from: type=gha
