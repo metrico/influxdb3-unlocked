@@ -25,4 +25,4 @@ jobs:
           upstream_repository: influxdata/influxdb
           upstream_branch: main
           target_branch: upstream
-          git_pull_args: --ff-only                    # optional arg use, defaults to simple 'pull'
+#          git_pull_args: --ff-only
