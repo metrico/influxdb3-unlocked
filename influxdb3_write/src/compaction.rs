@@ -16,8 +16,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinSet;
-use crate::Bufferer;
-use iox_time::MockProvider;
 
 /// Configuration for the compaction service
 #[derive(Debug, Clone)]
@@ -557,8 +555,8 @@ impl CompactionService {
     /// Update catalog for compaction: add new compacted files and remove old files
     async fn update_catalog_for_compaction(
         &self,
-        job: &CompactionJob,
-        new_files: &[ParquetFile],
+        _job: &CompactionJob,
+        _new_files: &[ParquetFile],
         old_files: &[ParquetFile],
     ) -> Result<()> {
         // Delete old files from object store
@@ -607,6 +605,7 @@ impl CompactionService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Bufferer;
 
     #[test]
     fn test_compaction_config_default() {
@@ -628,7 +627,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_compaction_sorts_and_updates_metadata() {
-        use std::sync::Arc;
         use crate::{ParquetFile, ParquetFileId};
 
         // Create a fake ParquetFile for input
@@ -653,7 +651,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_minimal_line_protocol_write() {
-        use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
         use std::sync::Arc;
         use object_store::memory::InMemory;
         use influxdb3_catalog::catalog::Catalog;
@@ -743,9 +740,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_real_compaction_sorts_and_updates_metadata() {
-        use arrow::datatypes::{DataType, Field, Schema as ArrowSchema};
         use std::sync::Arc;
-        use schema::{Schema, sort::SortKey};
         use std::collections::HashMap;
         use std::time::Duration;
         use object_store::memory::InMemory;
@@ -756,7 +751,6 @@ mod tests {
         use influxdb3_cache::last_cache::LastCacheProvider;
         use influxdb3_cache::distinct_cache::DistinctCacheProvider;
         use iox_query::exec::Executor;
-        use iox_time::SystemProvider;
         use influxdb3_wal::WalConfig;
         use metric::Registry;
         use crate::compaction::{CompactionConfig, CompactionService};
