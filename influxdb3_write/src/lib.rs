@@ -6,6 +6,7 @@
 
 pub(crate) mod async_collections;
 pub mod chunk;
+pub mod compaction;
 pub mod deleter;
 pub mod paths;
 pub mod persister;
@@ -57,7 +58,10 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-pub trait WriteBuffer: Bufferer + ChunkContainer + DistinctCacheManager + LastCacheManager {}
+pub trait WriteBuffer: Bufferer + ChunkContainer + DistinctCacheManager + LastCacheManager {
+    /// Returns the persisted files manager
+    fn persisted_files(&self) -> Arc<dyn std::any::Any>;
+}
 
 /// The buffer is for buffering data in memory and in the wal before it is persisted as parquet files in storage.
 #[async_trait]

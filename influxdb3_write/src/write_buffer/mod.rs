@@ -606,7 +606,11 @@ impl LastCacheManager for WriteBufferImpl {
     }
 }
 
-impl WriteBuffer for WriteBufferImpl {}
+impl WriteBuffer for WriteBufferImpl {
+    fn persisted_files(&self) -> Arc<dyn std::any::Any> {
+        Arc::clone(&self.persisted_files) as Arc<dyn std::any::Any>
+    }
+}
 
 pub async fn check_mem_and_force_snapshot_loop(
     write_buffer: Arc<WriteBufferImpl>,

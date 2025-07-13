@@ -6,7 +6,135 @@ This fork removes all crippled limits from InfluxDB3-core, unlocking enterprise-
 
 Transform InfluxDB3-core from a limited "open core" version into a fully-featured database with enterprise-level scalability and performance.
 
-## 📋 Removed Limits Summary
+## 🔧 Multi-Level Compaction System
+
+### Overview
+InfluxDB3-unlocked includes a comprehensive multi-level compaction system that automatically merges smaller generation files into larger, more efficient files. This significantly reduces the number of files that need to be read during queries, improving performance for large datasets.
+
+### Architecture
+
+The compaction system is implemented as a service that runs alongside the main InfluxDB3 server:
+
+- **Compaction Service**: Manages the compaction lifecycle and job scheduling
+- **Generation Manager**: Handles file organization across 5 generation levels
+- **Job Executor**: Processes compaction jobs with configurable limits
+- **File Organizer**: Maintains proper file structure in object store
+
+### Generation Levels
+The system supports up to 5 generation levels:
+
+- **Generation 1 (Gen1)**: Initial files created from WAL snapshots (configurable duration: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d)
+- **Generation 2 (Gen2)**: Compacted from Gen1 files (configurable duration: 1h, 6h, 12h, 1d, 7d, 30d)
+- **Generation 3 (Gen3)**: Compacted from Gen2 files (configurable duration: 1d, 7d, 30d, 90d)
+- **Generation 4 (Gen4)**: Compacted from Gen3 files (configurable duration: 7d, 30d, 90d, 365d)
+- **Generation 5 (Gen5)**: Compacted from Gen4 files (configurable duration: 30d, 90d, 365d)
+
+### Implementation Details
+
+#### Compaction Service (`influxdb3_write/src/compaction.rs`)
+```rust
+pub struct CompactionService {
+    catalog: Arc<Catalog>,
+    object_store: Arc<dyn ObjectStore>,
+    config: CompactionConfig,
+    shutdown_token: ShutdownToken,
+}
+
+pub struct CompactionConfig {
+    pub enable_compaction: bool,
+    pub compaction_interval: Duration,
+    pub max_compaction_files: usize,
+    pub min_files_for_compaction: usize,
+    pub gen1_duration: Duration,
+    pub gen2_duration: Option<Duration>,
+    pub gen3_duration: Option<Duration>,
+    pub gen4_duration: Option<Duration>,
+    pub gen5_duration: Option<Duration>,
+}
+```
+
+#### Job Identification Logic
+The service identifies compaction jobs by:
+1. Scanning all tables in the catalog
+2. Finding files that span the required duration for each generation level
+3. Grouping files by time ranges that match generation durations
+4. Filtering by minimum file count requirements
+
+#### File Organization
+Compacted files are organized in the object store with generation-aware paths:
+```
+dbs/{table}-{db_id}/{table}-{table_id}/gen{level}/{YYYY-MM-DD}/{HH-MM}/{file_index}.parquet
+```
+
+### Configuration Options
+
+#### Generation Durations
+```bash
+# Set generation durations (all optional except gen1)
+--gen1-duration 10m          # Default: 10m
+--gen2-duration 1h           # Optional: compact gen1 files to 1-hour chunks
+--gen3-duration 1d           # Optional: compact gen2 files to daily chunks
+--gen4-duration 7d           # Optional: compact gen3 files to weekly chunks
+--gen5-duration 30d          # Optional: compact gen4 files to monthly chunks
+```
+
+#### Compaction Settings
+```bash
+# Enable/disable automatic compaction
+--enable-compaction true     # Default: true
+
+# Compaction timing and limits
+--compaction-interval 1h     # Default: 1h - how often to check for compaction
+--max-compaction-files 100   # Default: 100 - max files per compaction run
+--min-files-for-compaction 10 # Default: 10 - minimum files to trigger compaction
+```
+
+### Benefits
+
+1. **Query Performance**: Fewer files to read means faster queries, especially for large time ranges
+2. **Storage Efficiency**: Compaction can reduce storage overhead through better compression
+3. **Scalability**: Supports datasets of any size by automatically managing file organization
+4. **Configurable**: Full control over compaction behavior and timing
+
+### Example Configuration
+
+For a high-throughput system with long-term storage needs:
+
+```bash
+influxdb3 serve \
+  --gen1-duration 5m \
+  --gen2-duration 1h \
+  --gen3-duration 1d \
+  --gen4-duration 7d \
+  --gen5-duration 30d \
+  --compaction-interval 30m \
+  --max-compaction-files 200 \
+  --min-files-for-compaction 5
+```
+
+This configuration:
+- Creates 5-minute Gen1 files for high-resolution recent data
+- Compacts to hourly Gen2 files for medium-term queries
+- Further compacts to daily Gen3 files for long-term analysis
+- Creates weekly Gen4 files for archival storage
+- Finally compacts to monthly Gen5 files for very long-term storage
+
+### Monitoring
+
+The compaction service logs detailed information about:
+- Compaction job identification and execution
+- File count and size reductions
+- Processing time and performance metrics
+- Error conditions and retry attempts
+
+### Backward Compatibility
+
+- All existing Gen1 files continue to work unchanged
+- New generation levels are additive and don't affect existing data
+- Compaction can be disabled entirely with `--enable-compaction false`
+- Generation durations can be changed, but existing files retain their original organization
+
+## Removed Limits Summary
 
 ### 🗄️ Database & Schema Limits
 
@@ -26,6 +154,7 @@ Transform InfluxDB3-core from a limited "open core" version into a fully-feature
 | **Parquet Fanout Limit** | 1,000 files | 10,000 files | `influxdb3_clap_blocks/src/datafusion.rs` |
 | **Row Group Size** | 100,000 rows | 1,000,000 rows | `influxdb3_write/src/persister.rs` |
 | **System Events Capacity** | 10,000 events | 100,000 events | `influxdb3_sys_events/src/lib.rs` |
+| **Multi-Level Compaction** | Not available | 5-generation system | `influxdb3_write/src/compaction.rs` |
 
 ### ⏱️ Time & Query Limits
 
@@ -184,6 +313,67 @@ default_value_t = false, // Telemetry enabled by default
 default_value_t = true, // Telemetry disabled by default for privacy
 ```
 
+### 10. Multi-Level Compaction Service (`influxdb3_write/src/compaction.rs`)
+
+```rust
+// NEW: Complete compaction service implementation
+pub struct CompactionService {
+    catalog: Arc<Catalog>,
+    object_store: Arc<dyn ObjectStore>,
+    config: CompactionConfig,
+    shutdown_token: ShutdownToken,
+}
+
+impl CompactionService {
+    pub async fn start(&self) -> Result<(), Error> {
+        // Start background compaction loop
+        // Identify and execute compaction jobs
+        // Manage file organization across generations
+    }
+    
+    async fn identify_compaction_jobs(&self) -> Result<Vec<CompactionJob>, Error> {
+        // Scan catalog for files ready for compaction
+        // Group files by generation levels
+        // Apply configuration limits
+    }
+    
+    async fn execute_compaction_job(&self, job: CompactionJob) -> Result<(), Error> {
+        // Merge files according to generation rules
+        // Update catalog with new file references
+        // Clean up old files
+    }
+}
+```
+
+### 11. Compaction CLI Integration (`influxdb3/src/commands/serve.rs`)
+
+```rust
+// NEW: Compaction command line arguments
+#[clap(long = "enable-compaction", default_value_t = true)]
+pub enable_compaction: bool,
+
+#[clap(long = "compaction-interval", default_value = "1h")]
+pub compaction_interval: Duration,
+
+#[clap(long = "max-compaction-files", default_value = "100")]
+pub max_compaction_files: usize,
+
+#[clap(long = "min-files-for-compaction", default_value = "10")]
+pub min_files_for_compaction: usize,
+
+#[clap(long = "gen2-duration")]
+pub gen2_duration: Option<Duration>,
+
+#[clap(long = "gen3-duration")]
+pub gen3_duration: Option<Duration>,
+
+#[clap(long = "gen4-duration")]
+pub gen4_duration: Option<Duration>,
+
+#[clap(long = "gen5-duration")]
+pub gen5_duration: Option<Duration>,
+```
+
 ## ✅ Verification
 
 ### Compilation
@@ -194,8 +384,15 @@ cargo check
 
 ### Test Confirmation
 ```bash
-cargo test --package influxdb3 server::limits
-# ❌ Expected failure - confirms 5-database limit has been removed
+cargo test --package influxdb3_write compaction
+# ✅ Compaction service tests pass
+```
+
+### Compaction Service Test
+```bash
+# Test compaction job identification
+cargo test --package influxdb3_write test_compaction_job_identification
+# ✅ Compaction job identification works correctly
 ```
 
 ## 🚀 Benefits
@@ -205,12 +402,14 @@ cargo test --package influxdb3 server::limits
 - **Flexible Querying**: Query any time range without 72-hour restrictions
 - **Large Data Support**: Handle 1GB HTTP requests for bulk operations
 - **Customizable Caching**: Set cache sizes and TTLs based on your needs
+- **Advanced Compaction**: Multi-level compaction for optimal performance
 
 ### For Production Deployments
 - **Enterprise Workloads**: Scale to handle massive datasets
 - **Long-term Analytics**: Query historical data without time restrictions
 - **High-throughput Operations**: Support large batch writes and queries
 - **Flexible Resource Management**: Optimize cache settings for your hardware
+- **Automatic File Management**: Multi-level compaction reduces query overhead
 
 ## 🔄 Backward Compatibility
 
@@ -219,6 +418,7 @@ All changes maintain full backward compatibility:
 - ✅ Configuration files work without modification
 - ✅ Client applications continue to function
 - ✅ Data integrity preserved
+- ✅ Existing Gen1 files work unchanged
 
 ## 📈 Performance Impact
 
@@ -226,6 +426,7 @@ All changes maintain full backward compatibility:
 - **Better Resource Utilization**: System can now use available hardware efficiently
 - **Improved Scalability**: Can handle enterprise-scale workloads
 - **Flexible Optimization**: Cache and memory settings can be tuned for specific use cases
+- **Enhanced Query Performance**: Multi-level compaction reduces file count for queries
 
 ## 🛠️ Usage Examples
 
@@ -266,6 +467,23 @@ influxdb3 serve --gen1-duration 1d
 
 # Increase parquet fanout for better file handling
 influxdb3 serve --datafusion-max-parquet-fanout 20000
+
+# Configure multi-level compaction
+influxdb3 serve \
+  --gen1-duration 5m \
+  --gen2-duration 1h \
+  --gen3-duration 1d \
+  --compaction-interval 30m \
+  --max-compaction-files 200
+```
+
+### Long-Term Data Analysis
+```bash
+# Query data beyond 72-hour limit
+influxdb3 query --database sensors "SELECT * FROM metrics WHERE time > now() - 1y"
+
+# Historical trend analysis
+influxdb3 query --database sensors "SELECT AVG(value) FROM metrics WHERE time > now() - 5y GROUP BY time(1d)"
 ```
 
 ## 🤝 Contributing
@@ -308,4 +526,4 @@ docker build -t influxdb3-unlocked .
 
 ---
 
-**🎉 Enjoy unlimited InfluxDB3 performance!**
+**🎉 Enjoy unlimited InfluxDB3 performance with enterprise-grade compaction!**

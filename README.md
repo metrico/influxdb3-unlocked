@@ -16,9 +16,10 @@ This fork removes the crippled limits from InfluxDB3-core (72h query restriction
 - **Unlimited retention periods** - Keep data as long as needed
 - **1GB HTTP request size** - Handle large batch operations
 
-### 🔧 **Advanced Compaction**
+### 🔧 **Advanced Multi-Level Compaction**
 - **Extended generation durations**: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d
-- **Multi-level compaction** - Optimize for different time scales
+- **Multi-level compaction system**: Automatic merging of files across 5 generation levels
+- **Configurable compaction**: Control timing, file limits, and generation durations
 - **Enhanced parquet fanout**: 10,000 files
 - **Larger row groups**: 1M rows for better compression
 - **Increased system capacity**: 100K events
@@ -54,6 +55,17 @@ docker run -p 8181:8181 \
   --object-store file \
   --node-id local1
 
+# Run with advanced compaction
+docker run -p 8181:8181 \
+  -v /data:/var/lib/influxdb3 \
+  ghcr.io/metrico/influxdb3-unlocked:latest serve \
+  --object-store file \
+  --node-id local1 \
+  --gen1-duration 5m \
+  --gen2-duration 1h \
+  --gen3-duration 1d \
+  --compaction-interval 30m
+
 # Run with S3/MinIO storage
 docker run -p 8181:8181 \
   -e INFLUXDB3_OBJECT_STORE=s3 \
@@ -72,6 +84,15 @@ docker run -p 8181:8181 \
 # Download and run
 curl -fsSL https://github.com/metrico/influxdb3-unlocked/releases/latest/download/influxdb3
 ./influxdb3 serve --object-store file --node-id local1
+
+# Run with advanced compaction
+./influxdb3 serve \
+  --object-store file \
+  --node-id local1 \
+  --gen1-duration 5m \
+  --gen2-duration 1h \
+  --gen3-duration 1d \
+  --compaction-interval 30m
 ```
 
 ### Health Check
@@ -79,6 +100,67 @@ curl -fsSL https://github.com/metrico/influxdb3-unlocked/releases/latest/downloa
 ```bash
 curl http://127.0.0.1:8181/health
 # Expected response: OK
+```
+
+## 🔧 Advanced Compaction Configuration
+
+### Multi-Level Compaction System
+
+InfluxDB3-unlocked includes a comprehensive multi-level compaction system that automatically merges smaller generation files into larger, more efficient files. This significantly reduces the number of files that need to be read during queries, improving performance for large datasets.
+
+### Generation Levels
+
+The system supports up to 5 generation levels:
+
+- **Generation 1 (Gen1)**: Initial files created from WAL snapshots
+- **Generation 2 (Gen2)**: Compacted from Gen1 files
+- **Generation 3 (Gen3)**: Compacted from Gen2 files
+- **Generation 4 (Gen4)**: Compacted from Gen3 files
+- **Generation 5 (Gen5)**: Compacted from Gen4 files
+
+### Configuration Options
+
+```bash
+# Generation durations (all optional except gen1)
+--gen1-duration 10m          # Default: 10m
+--gen2-duration 1h           # Optional: compact gen1 files to 1-hour chunks
+--gen3-duration 1d           # Optional: compact gen2 files to daily chunks
+--gen4-duration 7d           # Optional: compact gen3 files to weekly chunks
+--gen5-duration 30d          # Optional: compact gen4 files to monthly chunks
+
+# Compaction settings
+--enable-compaction true     # Default: true
+--compaction-interval 1h     # Default: 1h - how often to check for compaction
+--max-compaction-files 100   # Default: 100 - max files per compaction run
+--min-files-for-compaction 10 # Default: 10 - minimum files to trigger compaction
+```
+
+### Example Configurations
+
+#### High-Throughput System
+```bash
+influxdb3 serve \
+  --object-store file \
+  --node-id local1 \
+  --gen1-duration 5m \
+  --gen2-duration 1h \
+  --gen3-duration 1d \
+  --compaction-interval 30m \
+  --max-compaction-files 200 \
+  --min-files-for-compaction 5
+```
+
+#### Long-Term Storage System
+```bash
+influxdb3 serve \
+  --object-store file \
+  --node-id local1 \
+  --gen1-duration 1h \
+  --gen2-duration 6h \
+  --gen3-duration 1d \
+  --gen4-duration 7d \
+  --gen5-duration 30d \
+  --compaction-interval 2h
 ```
 
 ## 📊 Usage Examples
@@ -97,6 +179,10 @@ home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000
 home,room=living temp=70.5,humidity=42.1 1640995200000000000
 home,room=bedroom temp=68.9,humidity=48.7 1640995200000000000
 EOF
+
+# Large batch insert (up to 1GB)
+curl -X POST "http://127.0.0.1:8181/api/v2/write?org=company&bucket=sensors" \
+  --data-binary @large_dataset.lp
 ```
 
 #### Logs (Syslog Format)
@@ -125,8 +211,11 @@ influxdb3 query "SHOW DATABASES"
 # Query temperature data
 influxdb3 query --database sensors "SELECT * FROM home WHERE temp > 70 LIMIT 5"
 
-# Time range query
-influxdb3 query --database sensors "SELECT room, temp FROM home WHERE time > now() - 1h"
+# Time range query (no 72-hour limit!)
+influxdb3 query --database sensors "SELECT room, temp FROM home WHERE time > now() - 30d"
+
+# Long-term historical analysis
+influxdb3 query --database sensors "SELECT room, AVG(temp) as avg_temp FROM home WHERE time > now() - 1y GROUP BY room"
 
 # Aggregation
 influxdb3 query --database sensors "SELECT room, AVG(temp) as avg_temp FROM home GROUP BY room"
@@ -142,6 +231,9 @@ influxdb3 query --database logs "SELECT * FROM syslog WHERE message ~ '.+warning
 
 # Filter by severity
 influxdb3 query --database logs "SELECT * FROM syslog WHERE severity = 'error'"
+
+# Long-term log analysis
+influxdb3 query --database logs "SELECT COUNT(*) FROM syslog WHERE time > now() - 6m GROUP BY severity"
 ```
 
 #### Query Traces
@@ -154,6 +246,9 @@ influxdb3 query --database traces "SELECT * FROM spans WHERE service.name = 'tra
 
 # Find slow operations
 influxdb3 query --database traces "SELECT name, end_time_unix_nano - time as duration FROM spans ORDER BY duration DESC LIMIT 10"
+
+# Long-term trace analysis
+influxdb3 query --database traces "SELECT service.name, COUNT(*) as span_count FROM spans WHERE time > now() - 30d GROUP BY service.name"
 ```
 
 ## 🔧 Configuration
@@ -175,12 +270,60 @@ INFLUXDB3_GEN1_LOOKBACK_DURATION=1month        # Startup data loading
 INFLUXDB3_DATAFUSION_MAX_PARQUET_FANOUT=10000  # Parquet file handling
 INFLUXDB3_MAX_HTTP_REQUEST_SIZE=1073741824     # 1GB request limit
 
+# Compaction settings
+INFLUXDB3_ENABLE_COMPACTION=true               # Enable multi-level compaction
+INFLUXDB3_COMPACTION_INTERVAL=1h               # Compaction check interval
+INFLUXDB3_MAX_COMPACTION_FILES=100             # Max files per compaction run
+INFLUXDB3_MIN_FILES_FOR_COMPACTION=10          # Min files to trigger compaction
+
 # S3/MinIO settings (when using object-store=s3)
 INFLUXDB3_BUCKET=my-influxdb-bucket
 INFLUXDB3_AWS_ACCESS_KEY_ID=your-access-key
 INFLUXDB3_AWS_SECRET_ACCESS_KEY=your-secret-key
 INFLUXDB3_AWS_ENDPOINT=http://minio:9000
 INFLUXDB3_AWS_ALLOW_HTTP=true
+
+# Authentication settings
+INFLUXDB3_START_WITHOUT_AUTH=false              # Disable authentication completely
+INFLUXDB3_DISABLE_AUTHZ=health,ping,metrics     # Disable auth for specific endpoints
+```
+
+### Authentication Configuration
+
+InfluxDB3 supports different authentication modes for the HTTP API:
+
+#### **No Authentication** (Development/Testing)
+```bash
+# Disable authentication completely
+influxdb3 serve \
+  --object-store file \
+  --node-id local1 \
+  --without-auth
+
+# All API endpoints will be accessible without tokens
+# Note: Token creation endpoints are disabled in this mode
+```
+
+#### **Selective Authentication** (Production)
+```bash
+# Disable auth for specific endpoints only
+influxdb3 serve \
+  --object-store file \
+  --node-id local1 \
+  --disable-authz health,ping,metrics
+
+# Available options: health, ping, metrics
+# Other endpoints still require authentication
+```
+
+#### **Full Authentication** (Default)
+```bash
+# All endpoints require authentication
+influxdb3 serve \
+  --object-store file \
+  --node-id local1
+
+# Use tokens for all API calls
 ```
 
 ### Object Store Options
@@ -225,9 +368,14 @@ InfluxDB3 supports both Flight (gRPC) APIs and HTTP APIs. For HTTP queries, use 
 
 #### Query with URL Parameters
 ```bash
-# GET request with URL-encoded parameters
+# GET request with URL-encoded parameters (with authentication)
 curl -G "http://localhost:8181/api/v3/query_sql" \
   --header 'Authorization: Bearer YOUR_TOKEN' \
+  --data-urlencode "db=sensors" \
+  --data-urlencode "q=SELECT * FROM home WHERE temp > 70 LIMIT 5"
+
+# GET request without authentication (when using --without-auth)
+curl -G "http://localhost:8181/api/v3/query_sql" \
   --data-urlencode "db=sensors" \
   --data-urlencode "q=SELECT * FROM home WHERE temp > 70 LIMIT 5"
 
@@ -241,9 +389,18 @@ curl -G "http://localhost:8181/api/v3/query_sql" \
 
 #### Query with JSON Payload
 ```bash
-# POST request with JSON parameters
+# POST request with JSON parameters (with authentication)
 curl http://localhost:8181/api/v3/query_sql \
   --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "db": "sensors",
+    "q": "SELECT * FROM home WHERE time > now() - 1h",
+    "format": "json"
+  }'
+
+# POST request without authentication (when using --without-auth)
+curl http://localhost:8181/api/v3/query_sql \
   --header 'Content-Type: application/json' \
   --data '{
     "db": "sensors",
@@ -254,9 +411,13 @@ curl http://localhost:8181/api/v3/query_sql \
 
 #### Write Data via HTTP API
 ```bash
-# Write metrics using HTTP API
+# Write metrics using HTTP API (with authentication)
 curl -X POST "http://localhost:8181/api/v2/write?org=company&bucket=sensors" \
   --header 'Authorization: Bearer YOUR_TOKEN' \
+  --data-binary 'home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000'
+
+# Write metrics without authentication (when using --without-auth)
+curl -X POST "http://localhost:8181/api/v2/write?org=company&bucket=sensors" \
   --data-binary 'home,room=kitchen temp=72.1,humidity=45.2 1640995200000000000'
 
 # Write multiple data points
@@ -308,11 +469,11 @@ client = InfluxDBClient3(
     database='sensors'
 )
 
-# Query with time range
+# Query with time range (no 72-hour limit!)
 query = """
 SELECT room, temp, humidity 
 FROM home 
-WHERE time > now() - 1h 
+WHERE time > now() - 30d 
 ORDER BY time DESC
 """
 
@@ -363,6 +524,7 @@ Use the [FlightSQL datasource](https://github.com/influxdata/grafana-flightsql-d
 - **Better resource utilization** - system can use available hardware efficiently
 - **Improved scalability** - handles enterprise-scale workloads
 - **Flexible optimization** - cache and memory settings can be tuned
+- **Enhanced compaction** - multi-level compaction improves query performance
 
 ## 🏗️ Building from Source
 

@@ -205,10 +205,85 @@ pub struct Config {
     #[clap(
         long = "gen1-duration",
         env = "INFLUXDB3_GEN1_DURATION",
-        default_value = "1h",
+        default_value = "10m",
         action
     )]
     pub gen1_duration: Gen1Duration,
+
+    /// Duration for generation 2 files (compacted from gen1 files). 1h, 6h, 12h, 1d, 7d, 30d are supported.
+    /// These files are created by compacting multiple gen1 files together for better query performance.
+    #[clap(
+        long = "gen2-duration",
+        env = "INFLUXDB3_GEN2_DURATION",
+        action
+    )]
+    pub gen2_duration: Option<Gen1Duration>,
+
+    /// Duration for generation 3 files (compacted from gen2 files). 1d, 7d, 30d, 90d are supported.
+    /// These files are created by compacting multiple gen2 files together for long-term storage optimization.
+    #[clap(
+        long = "gen3-duration",
+        env = "INFLUXDB3_GEN3_DURATION",
+        action
+    )]
+    pub gen3_duration: Option<Gen1Duration>,
+
+    /// Duration for generation 4 files (compacted from gen3 files). 7d, 30d, 90d, 365d are supported.
+    /// These files are created by compacting multiple gen3 files together for archival storage.
+    #[clap(
+        long = "gen4-duration",
+        env = "INFLUXDB3_GEN4_DURATION",
+        action
+    )]
+    pub gen4_duration: Option<Gen1Duration>,
+
+    /// Duration for generation 5 files (compacted from gen4 files). 30d, 90d, 365d are supported.
+    /// These files are created by compacting multiple gen4 files together for long-term archival.
+    #[clap(
+        long = "gen5-duration",
+        env = "INFLUXDB3_GEN5_DURATION",
+        action
+    )]
+    pub gen5_duration: Option<Gen1Duration>,
+
+    /// Enable automatic background compaction. When enabled, the system will automatically
+    /// compact files from smaller generations into larger generations based on configured durations.
+    #[clap(
+        long = "enable-compaction",
+        env = "INFLUXDB3_ENABLE_COMPACTION",
+        default_value_t = true,
+        action
+    )]
+    pub enable_compaction: bool,
+
+    /// Interval between compaction runs. The compactor will check for files to compact at this interval.
+    #[clap(
+        long = "compaction-interval",
+        env = "INFLUXDB3_COMPACTION_INTERVAL",
+        default_value = "1h",
+        action
+    )]
+    pub compaction_interval: humantime::Duration,
+
+    /// Maximum number of files to compact in a single compaction run. This prevents overwhelming
+    /// the system during large compaction operations.
+    #[clap(
+        long = "max-compaction-files",
+        env = "INFLUXDB3_MAX_COMPACTION_FILES",
+        default_value = "100",
+        action
+    )]
+    pub max_compaction_files: usize,
+
+    /// Minimum number of files required before triggering compaction to the next generation.
+    /// This ensures compaction only happens when there are enough files to make it worthwhile.
+    #[clap(
+        long = "min-files-for-compaction",
+        env = "INFLUXDB3_MIN_FILES_FOR_COMPACTION",
+        default_value = "10",
+        action
+    )]
+    pub min_files_for_compaction: usize,
 
     /// The amount of time that the server looks back on startup when populating the in-memory
     /// index of gen1 files.
@@ -855,6 +930,54 @@ pub async fn command(config: Config) -> Result<()> {
         &write_buffer_impl,
     )
     .await;
+
+    // Set up generation durations in catalog for multi-level compaction
+    let mut generation_durations = std::collections::HashMap::new();
+    generation_durations.insert(1, config.gen1_duration.as_duration());
+    
+    if let Some(gen2_duration) = config.gen2_duration {
+        generation_durations.insert(2, gen2_duration.as_duration());
+        catalog.set_generation_duration(2, gen2_duration.as_duration()).await?;
+    }
+    if let Some(gen3_duration) = config.gen3_duration {
+        generation_durations.insert(3, gen3_duration.as_duration());
+        catalog.set_generation_duration(3, gen3_duration.as_duration()).await?;
+    }
+    if let Some(gen4_duration) = config.gen4_duration {
+        generation_durations.insert(4, gen4_duration.as_duration());
+        catalog.set_generation_duration(4, gen4_duration.as_duration()).await?;
+    }
+    if let Some(gen5_duration) = config.gen5_duration {
+        generation_durations.insert(5, gen5_duration.as_duration());
+        catalog.set_generation_duration(5, gen5_duration.as_duration()).await?;
+    }
+
+    // Initialize and start compaction service
+    if config.enable_compaction {
+        info!("setting up compaction service");
+        let compaction_config = influxdb3_write::compaction::CompactionConfig {
+            enabled: config.enable_compaction,
+            interval: config.compaction_interval.into(),
+            max_files_per_run: config.max_compaction_files,
+            min_files_for_compaction: config.min_files_for_compaction,
+            generation_durations,
+        };
+
+        let compaction_service = Arc::new(influxdb3_write::compaction::CompactionService::new(
+            compaction_config,
+            Arc::clone(&catalog),
+            Arc::clone(&write_buffer_impl) as Arc<dyn WriteBuffer>,
+            Arc::clone(&write_path_executor),
+            Arc::clone(&object_store),
+            Arc::clone(&time_provider),
+            shutdown_manager.register(),
+        ));
+
+        compaction_service.start();
+        info!("compaction service started");
+    } else {
+        info!("compaction service disabled");
+    }
 
     info!("setting up telemetry store");
     let telemetry_store = setup_telemetry_store(TelemetryStoreSetupArgs {

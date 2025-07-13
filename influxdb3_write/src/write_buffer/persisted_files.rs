@@ -78,6 +78,25 @@ impl PersistedFiles {
         inner.add_persisted_file(db_id, table_id, parquet_file);
     }
 
+    /// Remove specific files from a table (for compaction)
+    pub fn remove_persisted_files(&self, db_id: &DbId, table_id: &TableId, files_to_remove: &[ParquetFile]) {
+        let mut inner = self.inner.write();
+        if let Some(tables) = inner.files.get_mut(db_id) {
+            if let Some(files) = tables.get_mut(table_id) {
+                // Remove files by path
+                let paths_to_remove: std::collections::HashSet<_> = files_to_remove.iter().map(|f| &f.path).collect();
+                files.retain(|file| !paths_to_remove.contains(&file.path));
+                
+                // Update metrics
+                let removed_size: u64 = files_to_remove.iter().map(|f| f.size_bytes).sum();
+                let removed_rows: u64 = files_to_remove.iter().map(|f| f.row_count).sum();
+                inner.parquet_files_size_mb -= as_mb(removed_size);
+                inner.parquet_files_row_count -= removed_rows;
+                inner.parquet_files_count -= files_to_remove.len() as u64;
+            }
+        }
+    }
+
     /// Get the list of files for a given database and table, always return in descending order of min_time
     pub fn get_files(&self, db_id: DbId, table_id: TableId) -> Vec<ParquetFile> {
         self.get_files_filtered(db_id, table_id, &ChunkFilter::default())

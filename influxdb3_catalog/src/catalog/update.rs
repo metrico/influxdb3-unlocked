@@ -182,6 +182,31 @@ impl Catalog {
         .await
     }
 
+    pub async fn set_generation_duration(&self, level: u8, duration: Duration) -> Result<OrderedCatalogBatch> {
+        info!(level, duration_ns = duration.as_nanos(), "set generation duration");
+        self.catalog_update_with_retry(|| {
+            let time_ns = self.time_provider.now().timestamp_nanos();
+            if let Some(existing) = self.get_generation_duration(level) {
+                if duration != existing {
+                    return Err(CatalogError::CannotChangeGenerationDuration {
+                        level,
+                        existing: existing.into(),
+                        attempted: duration.into(),
+                    });
+                } else {
+                    return Err(CatalogError::AlreadyExists);
+                }
+            }
+            Ok(CatalogBatch::generation(
+                time_ns,
+                vec![GenerationOp::SetGenerationDuration(
+                    SetGenerationDurationLog { level, duration },
+                )],
+            ))
+        })
+        .await
+    }
+
     pub async fn register_node(
         &self,
         node_id: &str,

@@ -43,6 +43,26 @@ Examples:
   --gen1-duration <DURATION>       Duration for Parquet file arrangement [default: 1h]
                                   Supported: 1m, 5m, 10m, 30m, 1h, 6h, 12h, 1d, 7d
                                   [env: INFLUXDB3_GEN1_DURATION=]
+  --gen2-duration <DURATION>       Duration for generation 2 files (compacted from gen1)
+                                  Supported: 1h, 6h, 12h, 1d, 7d, 30d
+                                  [env: INFLUXDB3_GEN2_DURATION=]
+  --gen3-duration <DURATION>       Duration for generation 3 files (compacted from gen2)
+                                  Supported: 1d, 7d, 30d, 90d
+                                  [env: INFLUXDB3_GEN3_DURATION=]
+  --gen4-duration <DURATION>       Duration for generation 4 files (compacted from gen3)
+                                  Supported: 7d, 30d, 90d, 365d
+                                  [env: INFLUXDB3_GEN4_DURATION=]
+  --gen5-duration <DURATION>       Duration for generation 5 files (compacted from gen4)
+                                  Supported: 30d, 90d, 365d
+                                  [env: INFLUXDB3_GEN5_DURATION=]
+  --enable-compaction              Enable automatic background compaction [default: true]
+                                  [env: INFLUXDB3_ENABLE_COMPACTION=]
+  --compaction-interval <INTERVAL> Interval between compaction runs [default: 1h]
+                                  [env: INFLUXDB3_COMPACTION_INTERVAL=]
+  --max-compaction-files <N>       Maximum files to compact per run [default: 100]
+                                  [env: INFLUXDB3_MAX_COMPACTION_FILES=]
+  --min-files-for-compaction <N>   Minimum files required for compaction [default: 10]
+                                  [env: INFLUXDB3_MIN_FILES_FOR_COMPACTION=]
   --gen1-lookback-duration <DURATION>
                                    The amount of time that the server looks back on startup
                                    when populating the in-memory index of gen1 files.
