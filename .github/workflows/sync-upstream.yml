@@ -17,12 +17,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 
-      - name: Pull (Fast-Forward) upstream changes
-        id: sync
-        uses: aormsby/Fork-Sync-With-Upstream-action@v2.1
-        with:
-          upstream_repository: influxdata/influxdb
-          upstream_branch: main
-          target_branch: upstream
-#          git_pull_args: --ff-only
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/influxdata/influxdb.git
+
+      - name: Fetch upstream
+        run: |
+          git fetch upstream main
+
+      - name: Create or reset upstream branch
+        run: |
+          # Delete upstream branch if it exists (locally or remotely)
+          git branch -D upstream 2>/dev/null || true
+          git push origin --delete upstream 2>/dev/null || true
+          
+          # Create new upstream branch from upstream/main
+          git checkout -b upstream upstream/main
+
+      - name: Push upstream branch
+        run: |
+          git push origin upstream --force
+
+      - name: Cleanup
+        run: |
+          git remote remove upstream
