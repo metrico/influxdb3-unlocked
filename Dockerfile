@@ -90,6 +90,8 @@ ENV INFLUXDB3_PLUGIN_DIR=/plugins
 COPY --from=build "/root/$PACKAGE" "/usr/bin/$PACKAGE"
 COPY docker/entrypoint.sh /usr/bin/entrypoint.sh
 
+RUN chmod +x /usr/bin/influxdb3 /usr/bin/entrypoint.sh
+
 EXPOSE 8181
 
 ENV LOG_FILTER=info

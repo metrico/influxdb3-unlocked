@@ -102,6 +102,168 @@ curl http://127.0.0.1:8181/health
 # Expected response: OK
 ```
 
+## 🔐 Authentication & Token Management
+
+InfluxDB3-unlocked includes a robust authentication system with token-based access control. By default, authentication is **enabled** for all endpoints.
+
+### 🚀 Quick Authentication Setup
+
+#### **1. Start Server with Authentication (Default)**
+```bash
+# Start with authentication enabled (default behavior)
+./influxdb3 serve \
+  --object-store file \
+  --data-dir /tmp/influxdb3-data \
+  --node-id local1
+```
+
+#### **2. Create Your First Admin Token**
+```bash
+# Create the initial admin token
+./influxdb3 create token --admin
+
+# Output:
+# Created admin token: apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF7A06t24KiI3VgHkenn38XivvCy0vIztd0R7nb9GYQ
+# 
+# Use this token in HTTP requests:
+# Authorization: Bearer apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF7A06t24KiI3VgHkenn38XivvCy0vIztd0R7nb9GYQ
+```
+
+#### **3. Use Token for API Calls**
+```bash
+# Set token as environment variable
+export INFLUXDB3_AUTH_TOKEN="apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF7A06t24KiI3VgHkenn38XivvCy0vIztd0R7nb9GYQ"
+
+# Test authentication with a query
+./influxdb3 query "SHOW DATABASES"
+```
+
+### 🔑 Token Management Commands
+
+#### **Create Admin Tokens**
+```bash
+# Create default admin token
+./influxdb3 create token --admin
+
+# Create named admin token with expiry
+./influxdb3 create token --admin --name "production_token" --expiry 30d
+
+# Create short-lived token for testing
+./influxdb3 create token --admin --name "test_token" --expiry 1h
+
+# Regenerate admin token (requires confirmation)
+./influxdb3 create token --admin --regenerate
+```
+
+#### **Token Expiry Options**
+```bash
+# Available expiry formats
+--expiry 30d      # 30 days
+--expiry 1w       # 1 week  
+--expiry 24h      # 24 hours
+--expiry 1h       # 1 hour
+--expiry 30m      # 30 minutes
+```
+
+### 🔒 Authentication Modes
+
+#### **Full Authentication (Default)**
+```bash
+# All endpoints require authentication
+./influxdb3 serve \
+  --object-store file \
+  --data-dir /tmp/influxdb3-data \
+  --node-id local1
+
+# Use tokens for all API calls
+curl -H "Authorization: Bearer YOUR_TOKEN" http://localhost:8181/api/v3/query_sql
+```
+
+#### **Selective Authentication**
+```bash
+# Disable auth for specific endpoints only
+./influxdb3 serve \
+  --object-store file \
+  --data-dir /tmp/influxdb3-data \
+  --node-id local1 \
+  --disable-authz health,ping,metrics
+
+# Available options: health, ping, metrics
+# Other endpoints still require authentication
+```
+
+#### **No Authentication (Development)**
+```bash
+# Disable authentication completely
+./influxdb3 serve \
+  --object-store file \
+  --data-dir /tmp/influxdb3-data \
+  --node-id local1 \
+  --without-auth
+
+# All API endpoints accessible without tokens
+# Note: Token creation endpoints are disabled in this mode
+```
+
+### 🌐 HTTP API Authentication
+
+#### **Using Tokens in HTTP Requests**
+```bash
+# Query with Bearer token
+curl -G "http://localhost:8181/api/v3/query_sql" \
+  --header 'Authorization: Bearer apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF7A06t24KiI3VgHkenn38XivvCy0vIztd0R7nb9GYQ' \
+  --data-urlencode "db=sensors" \
+  --data-urlencode "q=SELECT * FROM home LIMIT 5"
+
+# Write data with token
+curl -X POST "http://localhost:8181/api/v2/write?org=company&bucket=sensors" \
+  --header 'Authorization: Bearer apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF7A06t24KiI3VgHkenn38XivvCy0vIztd0R7nb9GYQ' \
+  --data-binary 'home,room=kitchen temp=72.1 1640995200000000000'
+```
+
+#### **Environment Variable Authentication**
+```bash
+# Set token for all CLI commands
+export INFLUXDB3_AUTH_TOKEN="apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF7A06t24KiI3VgHkenn38XivvCy0vIztd0R7nb9GYQ"
+
+# Commands will automatically use the token
+./influxdb3 query "SHOW DATABASES"
+./influxdb3 write --database sensors "home,room=kitchen temp=72.1"
+```
+
+### 🔧 Advanced Token Features
+
+#### **Token Security**
+- **SHA-512 Hashing**: All tokens are securely hashed
+- **Automatic Expiry**: Tokens can be set with expiration times
+- **Regeneration**: Admin tokens can be regenerated for security
+- **Named Tokens**: Create multiple tokens with descriptive names
+
+#### **Token Storage**
+- **Persistent**: Tokens are stored in the catalog and persisted to object store
+- **In-Memory**: Fast token validation with in-memory caching
+- **Automatic Cleanup**: Expired tokens are automatically removed
+
+#### **Best Practices**
+```bash
+# 1. Use named tokens for different environments
+./influxdb3 create token --admin --name "production" --expiry 90d
+./influxdb3 create token --admin --name "staging" --expiry 30d
+./influxdb3 create token --admin --name "development" --expiry 7d
+
+# 2. Set appropriate expiry times
+# Production: 90 days
+# Staging: 30 days  
+# Development: 7 days
+# Testing: 1 hour
+
+# 3. Regenerate tokens regularly
+./influxdb3 create token --admin --regenerate
+
+# 4. Use environment variables in production
+export INFLUXDB3_AUTH_TOKEN="your_production_token"
+```
+
 ## 🔧 Advanced Compaction Configuration
 
 ### Multi-Level Compaction System
@@ -289,6 +451,8 @@ INFLUXDB3_DISABLE_AUTHZ=health,ping,metrics     # Disable auth for specific endp
 ```
 
 ### Authentication Configuration
+
+> **📖 For detailed authentication setup and token management, see the [Authentication & Token Management](#-authentication--token-management) section above.**
 
 InfluxDB3 supports different authentication modes for the HTTP API:
 
