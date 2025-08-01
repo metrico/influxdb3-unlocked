@@ -1,3 +1,5 @@
+<img width="300" alt="influx-unlocked" src="https://github.com/user-attachments/assets/cabf6239-2d95-4531-8bf0-054b6a97d5fe" />
+
 # InfluxDB3 Unlocked 🚀
 
 > **InfluxDB3 Core without artificial limitations**
@@ -707,6 +709,12 @@ client.write_dataframe(data, data_frame_measurement_name='home')
 
 client.close()
 ```
+
+
+### InfluxDB3 Explorer
+Use the [InfluxDB3 Explorer](https://docs.influxdata.com/influxdb3/explorer/) with your unlocked InfluxDB3 server
+
+<img width="1317" height="952" alt="InfluxDB-3-Explorer-08-01-2025_09_33_PM" src="https://github.com/user-attachments/assets/c015cedf-677e-4493-9721-2e99eeb2d359" />
 
 ### Grafana Integration
 
