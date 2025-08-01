@@ -937,6 +937,7 @@ pub struct TokenBatch {
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TokenCatalogOp {
     CreateAdminToken(CreateAdminTokenDetails),
+    CreateScopedToken(CreateScopedTokenDetails),
     RegenerateAdminToken(RegenerateAdminTokenDetails),
     DeleteToken(DeleteTokenDetails),
 }
@@ -949,6 +950,17 @@ pub struct CreateAdminTokenDetails {
     pub created_at: i64,
     pub updated_at: Option<i64>,
     pub expiry: Option<i64>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct CreateScopedTokenDetails {
+    pub token_id: TokenId,
+    pub name: Arc<str>,
+    pub hash: Vec<u8>,
+    pub created_at: i64,
+    pub updated_at: Option<i64>,
+    pub expiry: Option<i64>,
+    pub permissions: Vec<influxdb3_authz::Permission>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]

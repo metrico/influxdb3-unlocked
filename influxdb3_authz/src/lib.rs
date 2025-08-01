@@ -7,12 +7,12 @@ use authz::{
 use influxdb3_id::{DbId, TokenId};
 use iox_time::{Time, TimeProvider};
 use observability_deps::tracing::{debug, trace};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha512};
 use std::fmt::Debug;
 
-#[derive(Debug, Copy, Clone, Serialize)]
-pub struct DatabaseActions(u16);
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct DatabaseActions(pub u16);
 
 impl From<u16> for DatabaseActions {
     fn from(value: u16) -> Self {
@@ -20,8 +20,8 @@ impl From<u16> for DatabaseActions {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize)]
-pub struct CrudActions(u16);
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct CrudActions(pub u16);
 
 impl From<u16> for CrudActions {
     fn from(value: u16) -> Self {
@@ -296,28 +296,28 @@ impl TokenInfo {
 /// itself. The wildcards at each level makes the setup harder to model everything within a single
 /// enum for example. So, once we add few more resources this should be fairly straightforward to
 /// refine to make certain combinations impossible to set
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Permission {
     pub resource_type: ResourceType,
     pub resource_identifier: ResourceIdentifier,
     pub actions: Actions,
 }
 
-#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq, Serialize)]
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ResourceType {
     Database,
     Token,
     Wildcard,
 }
 
-#[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub enum ResourceIdentifier {
     Database(Vec<DbId>),
     Token(Vec<TokenId>),
     Wildcard,
 }
 
-#[derive(Debug, Copy, Clone, Serialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Actions {
     Database(DatabaseActions),
     Token(CrudActions),

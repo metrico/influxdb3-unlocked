@@ -774,6 +774,28 @@ impl Client {
         response_json
     }
 
+    /// Create scoped tokens with permissions
+    pub async fn api_v3_configure_create_scoped_token(
+        &self,
+        token_name: impl Into<String> + Send,
+        permissions: Vec<PermissionRequest>,
+        expiry_secs: Option<u64>,
+    ) -> Result<Option<CreateTokenWithPermissionsResponse>> {
+        let response_json: Result<Option<CreateTokenWithPermissionsResponse>> = self
+            .send_create(
+                Method::POST,
+                "/api/v3/configure/token",
+                Some(CreateScopedTokenRequest {
+                    token_name: token_name.into(),
+                    permissions,
+                    expiry_secs,
+                }),
+                None::<()>,
+            )
+            .await;
+        response_json
+    }
+
     /// regenerate admin token
     pub async fn api_v3_configure_regenerate_admin_token(
         &self,

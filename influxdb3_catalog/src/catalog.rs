@@ -50,7 +50,7 @@ use crate::channel::{CatalogSubscriptions, CatalogUpdateReceiver};
 use crate::log::GenerationBatch;
 use crate::log::GenerationOp;
 use crate::log::{
-    ClearRetentionPeriodLog, CreateAdminTokenDetails, CreateDatabaseLog, DatabaseBatch,
+    ClearRetentionPeriodLog, CreateAdminTokenDetails, CreateScopedTokenDetails, CreateDatabaseLog, DatabaseBatch,
     DatabaseCatalogOp, NodeBatch, NodeCatalogOp, NodeMode, RegenerateAdminTokenDetails,
     RegisterNodeLog, SetRetentionPeriodLog, StopNodeLog, TokenBatch, TokenCatalogOp,
     TriggerSpecificationDefinition,
@@ -683,6 +683,60 @@ impl Catalog {
         Ok((token_info, token))
     }
 
+    pub async fn create_scoped_token(
+        &self,
+        token_name: String,
+        permissions: Vec<influxdb3_authz::Permission>,
+        expiry_secs: Option<u64>,
+    ) -> Result<(Arc<TokenInfo>, String)> {
+        let (token, hash) = create_token_and_hash();
+        self.catalog_update_with_retry(|| {
+            if self.inner.read().tokens.repo().contains_name(&token_name) {
+                return Err(CatalogError::TokenNameAlreadyExists(token_name.clone()));
+            }
+
+            let (token_id, created_at, expiry) = {
+                let mut inner = self.inner.write();
+                let token_id = inner.tokens.get_and_increment_next_id();
+                let created_at = self.time_provider.now();
+                let expiry = expiry_secs.map(|secs| {
+                    created_at
+                        .checked_add(Duration::from_secs(secs))
+                        .expect("duration not to overflow")
+                        .timestamp_millis()
+                });
+                (token_id, created_at.timestamp_millis(), expiry)
+            };
+
+            Ok(CatalogBatch::Token(TokenBatch {
+                time_ns: created_at,
+                ops: vec![TokenCatalogOp::CreateScopedToken(CreateScopedTokenDetails {
+                    token_id,
+                    name: Arc::from(token_name.as_str()),
+                    hash: hash.clone(),
+                    created_at,
+                    updated_at: None,
+                    expiry,
+                    permissions: permissions.clone(),
+                })],
+            }))
+        })
+        .await?;
+
+        let token_info = {
+            self.inner
+                .read()
+                .tokens
+                .repo()
+                .get_by_name(&token_name)
+                .expect("token info must be present after token creation by name")
+        };
+
+        // we need to pass these details back, especially this token as this is what user should
+        // send in subsequent requests
+        Ok((token_info, token))
+    }
+
     // Return a map of all retention periods indexed by their combined database & table IDs.
     pub fn get_retention_period_cutoff_map(&self) -> BTreeMap<(DbId, TableId), i64> {
         self.list_db_schema()
@@ -1191,6 +1245,21 @@ impl InnerCatalog {
                     // add the admin token itself
                     self.tokens
                         .add_token(create_admin_token_details.token_id, token_info)?;
+                    true
+                }
+                TokenCatalogOp::CreateScopedToken(create_scoped_token_details) => {
+                    let mut token_info = TokenInfo::new(
+                        create_scoped_token_details.token_id,
+                        Arc::clone(&create_scoped_token_details.name),
+                        create_scoped_token_details.hash.clone(),
+                        create_scoped_token_details.created_at,
+                        create_scoped_token_details.expiry,
+                    );
+
+                    token_info.set_permissions(create_scoped_token_details.permissions.clone());
+                    // add the scoped token
+                    self.tokens
+                        .add_token(create_scoped_token_details.token_id, token_info)?;
                     true
                 }
                 TokenCatalogOp::RegenerateAdminToken(regenerate_admin_token_details) => {

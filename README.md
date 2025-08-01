@@ -153,6 +153,18 @@ export INFLUXDB3_AUTH_TOKEN="apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF
 
 # Regenerate admin token (requires confirmation)
 ./influxdb3 create token --admin --regenerate
+
+# Create scoped tokens with specific permissions
+./influxdb3 create token --name "read_only_token" --permissions "db:sensors:read"
+./influxdb3 create token --name "write_token" --permissions "db:sensors:write"
+./influxdb3 create token --name "full_access_token" --permissions "db:sensors:read" --permissions "db:sensors:write"
+
+# Create tokens with wildcard permissions
+./influxdb3 create token --name "all_db_read" --permissions "db:*:read"
+./influxdb3 create token --name "token_manager" --permissions "token:*:read" --permissions "token:*:write"
+
+# Create scoped tokens with expiry
+./influxdb3 create token --name "temp_token" --permissions "db:temp_db:read" --expiry 24h
 ```
 
 #### **Token Expiry Options**
@@ -238,11 +250,50 @@ export INFLUXDB3_AUTH_TOKEN="apiv3_sc5R-bIEVeHjI9x4sOcbFJu9G1Ohjx0skXpEoc_kvMjRF
 - **Automatic Expiry**: Tokens can be set with expiration times
 - **Regeneration**: Admin tokens can be regenerated for security
 - **Named Tokens**: Create multiple tokens with descriptive names
+- **Scoped Permissions**: Create tokens with specific database and action permissions
 
 #### **Token Storage**
 - **Persistent**: Tokens are stored in the catalog and persisted to object store
 - **In-Memory**: Fast token validation with in-memory caching
 - **Automatic Cleanup**: Expired tokens are automatically removed
+
+#### **Scoped Token Permissions**
+
+Scoped tokens allow you to create tokens with specific permissions instead of full admin access. This follows the principle of least privilege for better security.
+
+##### **Permission Format**
+```bash
+resource_type:resource_name:action
+```
+
+##### **Supported Resource Types**
+- **`db`**: Database permissions
+- **`token`**: Token management permissions
+
+##### **Supported Actions**
+- **Database Actions**: `read`, `write`, `create`
+- **Token Actions**: `read`, `write`, `create`, `delete`
+
+##### **Examples**
+```bash
+# Database-specific permissions
+db:sensors:read          # Read-only access to 'sensors' database
+db:sensors:write         # Write-only access to 'sensors' database
+db:sensors:read,write    # Read and write access to 'sensors' database
+
+# Wildcard permissions
+db:*:read                # Read access to all databases
+token:*:read             # Read access to all tokens
+
+# Multiple permissions
+--permissions "db:sensors:read" --permissions "db:logs:write"
+```
+
+##### **Use Cases**
+- **Application Tokens**: Create tokens with minimal required permissions
+- **Monitoring Tokens**: Read-only access for monitoring tools
+- **Backup Tokens**: Read access for backup processes
+- **Development Tokens**: Limited access for development environments
 
 #### **Best Practices**
 ```bash

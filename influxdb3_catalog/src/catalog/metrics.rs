@@ -113,6 +113,7 @@ impl AsMetricStr for TokenCatalogOp {
     fn as_metric_str(&self) -> &'static str {
         match self {
             TokenCatalogOp::CreateAdminToken(_) => "create_admin_token",
+            TokenCatalogOp::CreateScopedToken(_) => "create_scoped_token",
             TokenCatalogOp::RegenerateAdminToken(_) => "regenerate_admin_token",
             TokenCatalogOp::DeleteToken(_) => "delete_token",
         }

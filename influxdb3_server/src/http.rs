@@ -668,6 +668,102 @@ impl HttpApi {
         Ok(body?)
     }
 
+    pub(crate) async fn create_scoped_token(&self, req: Request) -> Result<Response, Error> {
+        let request: CreateScopedTokenRequest = self.read_body_json(req).await?;
+        let catalog = self.write_buffer.catalog();
+        
+        // Convert the request permissions to the internal permission format
+        let mut permissions = Vec::new();
+        for perm_req in request.permissions {
+            let resource_type = match perm_req.resource_type.as_str() {
+                "db" => influxdb3_authz::ResourceType::Database,
+                "token" => influxdb3_authz::ResourceType::Token,
+                _ => return Err(Error::InvalidContentType { expected: mime::APPLICATION_JSON }),
+            };
+
+            let resource_identifier = if perm_req.resource_names.contains(&"*".to_string()) {
+                influxdb3_authz::ResourceIdentifier::Wildcard
+            } else {
+                match resource_type {
+                    influxdb3_authz::ResourceType::Database => {
+                        // Convert database names to IDs
+                        let mut db_ids = Vec::new();
+                        for db_name in perm_req.resource_names {
+                            if let Some(db_id) = catalog.db_name_to_id(&db_name) {
+                                db_ids.push(db_id);
+                            } else {
+                                return Err(Error::MissingDb(db_name));
+                            }
+                        }
+                        influxdb3_authz::ResourceIdentifier::Database(db_ids)
+                    }
+                    influxdb3_authz::ResourceType::Token => {
+                        // For now, we'll use wildcard for tokens since we don't have token name to ID mapping
+                        influxdb3_authz::ResourceIdentifier::Wildcard
+                    }
+                    _ => influxdb3_authz::ResourceIdentifier::Wildcard,
+                }
+            };
+
+            let actions = if perm_req.actions.contains(&"*".to_string()) {
+                influxdb3_authz::Actions::Wildcard
+            } else {
+                match resource_type {
+                    influxdb3_authz::ResourceType::Database => {
+                        let mut db_actions = 0u16;
+                        for action in perm_req.actions {
+                            match action.as_str() {
+                                "read" => db_actions |= 1,
+                                "write" => db_actions |= 2,
+                                "create" => db_actions |= 4,
+                                _ => return Err(Error::InvalidContentType { expected: mime::APPLICATION_JSON }),
+                            }
+                        }
+                        influxdb3_authz::Actions::Database(influxdb3_authz::DatabaseActions(db_actions))
+                    }
+                    influxdb3_authz::ResourceType::Token => {
+                        let mut token_actions = 0u16;
+                        for action in perm_req.actions {
+                            match action.as_str() {
+                                "read" => token_actions |= 1,
+                                "write" => token_actions |= 2,
+                                "create" => token_actions |= 4,
+                                "delete" => token_actions |= 8,
+                                _ => return Err(Error::InvalidContentType { expected: mime::APPLICATION_JSON }),
+                            }
+                        }
+                        influxdb3_authz::Actions::Token(influxdb3_authz::CrudActions(token_actions))
+                    }
+                    _ => influxdb3_authz::Actions::Wildcard,
+                }
+            };
+
+            permissions.push(influxdb3_authz::Permission {
+                resource_type,
+                resource_identifier,
+                actions,
+            });
+        }
+
+        let (token_info, token) = catalog
+            .create_scoped_token(
+                request.token_name,
+                permissions,
+                request.expiry_secs,
+            )
+            .await?;
+
+        let response = CreateTokenWithPermissionsResponse::from_token_info(token_info, token);
+        let body = serde_json::to_vec(&response)?;
+
+        let body = ResponseBuilder::new()
+            .status(StatusCode::CREATED)
+            .header(CONTENT_TYPE, "json")
+            .body(bytes_to_response_body(body));
+
+        Ok(body?)
+    }
+
     pub(crate) async fn regenerate_admin_token(&self, _req: Request) -> Result<Response, Error> {
         let catalog = self.write_buffer.catalog();
         let (token_info, token) = catalog.create_admin_token(true).await?;
@@ -1915,6 +2011,9 @@ pub(crate) async fn route_request(
         }
         (Method::POST, all_paths::API_V3_CONFIGURE_NAMED_ADMIN_TOKEN) => {
             http_server.create_named_admin_token(req).await
+        }
+        (Method::POST, all_paths::API_V3_CONFIGURE_TOKEN) => {
+            http_server.create_scoped_token(req).await
         }
         (Method::POST, all_paths::API_LEGACY_WRITE) => {
             let params = match http_server.legacy_write_param_unifier.parse_v1(&req).await {

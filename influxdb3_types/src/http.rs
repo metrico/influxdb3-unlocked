@@ -450,3 +450,17 @@ pub struct CreateNamedAdminTokenRequest {
     pub token_name: String,
     pub expiry_secs: Option<u64>,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CreateScopedTokenRequest {
+    pub token_name: String,
+    pub permissions: Vec<PermissionRequest>,
+    pub expiry_secs: Option<u64>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PermissionRequest {
+    pub resource_type: String,
+    pub resource_names: Vec<String>,
+    pub actions: Vec<String>,
+}

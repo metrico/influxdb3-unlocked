@@ -36,6 +36,9 @@ impl From<v2::TokenCatalogOp> for v3::TokenCatalogOp {
             v2::TokenCatalogOp::CreateAdminToken(create_admin_token_details) => {
                 v3::TokenCatalogOp::CreateAdminToken(create_admin_token_details.into())
             }
+            v2::TokenCatalogOp::CreateScopedToken(create_scoped_token_details) => {
+                v3::TokenCatalogOp::CreateScopedToken(create_scoped_token_details.into())
+            }
             v2::TokenCatalogOp::RegenerateAdminToken(regenerate_admin_token_details) => {
                 v3::TokenCatalogOp::RegenerateAdminToken(regenerate_admin_token_details.into())
             }
@@ -55,6 +58,20 @@ impl From<v2::CreateAdminTokenDetails> for v3::CreateAdminTokenDetails {
             created_at: value.created_at,
             updated_at: value.updated_at,
             expiry: value.expiry,
+        }
+    }
+}
+
+impl From<v2::CreateScopedTokenDetails> for v3::CreateScopedTokenDetails {
+    fn from(value: v2::CreateScopedTokenDetails) -> Self {
+        Self {
+            token_id: value.token_id,
+            name: value.name,
+            hash: value.hash,
+            created_at: value.created_at,
+            updated_at: value.updated_at,
+            expiry: value.expiry,
+            permissions: value.permissions,
         }
     }
 }
