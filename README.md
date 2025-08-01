@@ -1,4 +1,4 @@
-<img width="300" alt="influx-unlocked" src="https://github.com/user-attachments/assets/cabf6239-2d95-4531-8bf0-054b6a97d5fe" />
+<img width="300" alt="image" src="https://github.com/user-attachments/assets/44d2c1b0-4ec8-4d39-a75c-384e9e0a3f89" />
 
 # InfluxDB3 Unlocked 🚀
 
